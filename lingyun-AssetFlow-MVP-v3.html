@@ -1497,6 +1497,7 @@ function renderPage(){
   const route=getRoute();
   const {page,id}=parseRoute(route);
   updateNav(page);
+  updateSidebarBadges();
   const content=document.getElementById('pageContent');
 
   let html='';
@@ -1599,8 +1600,21 @@ function matchTypeFilter(assetType, activeCatValues){
   });
 }
 
+// ==================== SIDEBAR BADGES ====================
+function updateSidebarBadges(){
+  const b=document.querySelector('[data-route="assets"] .nav-badge');
+  if(b)b.textContent=ASSETS.length;
+  const t=document.querySelector('[data-route="tasks"] .nav-badge');
+  if(t)t.textContent=TASKS.length;
+  const r=document.querySelector('[data-route="reviews"] .nav-badge');
+  if(r)r.textContent=REVIEWS.length;
+  const rk=document.querySelector('[data-route="risks"] .nav-badge');
+  if(rk)rk.textContent=RISKS.length;
+}
+
 // ==================== INIT ====================
 window.addEventListener('hashchange',()=>{closeSidebar();renderPage();});
+updateSidebarBadges();
 document.getElementById('btnNewAsset').addEventListener('click',()=>toast('新建资产功能将在后续版本中实装'));
 // sidebar overlay click to close
 const overlay=document.getElementById('sidebarOverlay');
