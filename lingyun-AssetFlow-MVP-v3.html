@@ -121,7 +121,7 @@ body{font-family:'Microsoft YaHei UI','PingFang SC','Noto Sans CJK SC',sans-seri
 .sidebar-overlay.show{display:block;opacity:1}
 
 /* ===== Topbar ===== */
-.topbar-project{font-size:15px;font-weight:600;color:var(--color-text-primary);display:flex;align-items:center;gap:var(--space-sm)}
+.topbar-project{font-size:15px;font-weight:600;color:var(--color-text-primary);display:flex;align-items:center;gap:var(--space-sm);cursor:pointer}
 .topbar-project svg{width:16px;height:16px;stroke:var(--color-text-muted)}
 .topbar-search{flex:1;max-width:480px;position:relative}
 .topbar-search input{width:100%;height:36px;background:var(--color-bg-panel);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:0 var(--space-lg) 0 38px;color:var(--color-text-primary);font-size:13px;outline:none;transition:border-color 0.15s}
@@ -404,7 +404,7 @@ body{font-family:'Microsoft YaHei UI','PingFang SC','Noto Sans CJK SC',sans-seri
 .dash-layout{display:grid;grid-template-columns:1fr 360px;gap:var(--space-xl)}
 .asset-row{display:flex;gap:var(--space-lg);margin-bottom:var(--space-lg);overflow-x:auto}
 .asset-row .asset-card{min-width:280px;flex-shrink:0}
-.task-list-item{display:flex;align-items:center;padding:var(--space-md) var(--space-lg);border-bottom:1px solid var(--color-border-subtle);cursor:pointer;transition:background 0.15s;gap:var(--space-md)}
+.task-list-item{display:flex;align-items:center;padding:var(--space-md) var(--space-lg);border-bottom:1px solid var(--color-border-subtle);cursor:pointer;transition:background 0.15s;gap:var(--space-md);position:relative}
 .task-list-item:hover{background:rgba(255,255,255,0.02)}
 .task-list-item:last-child{border-bottom:none}
 .task-list-item .task-check{width:18px;height:18px;border:1.5px solid var(--color-border-strong);border-radius:50%;flex-shrink:0}
@@ -592,7 +592,7 @@ body{font-family:'Microsoft YaHei UI','PingFang SC','Noto Sans CJK SC',sans-seri
       </a>
     </nav>
     <div class="sidebar-user">
-      <div class="avatar">C</div>
+      <div class="avatar" onclick="toast('用户设置将在后续版本中实装')">C</div>
       <div class="info">
         <div class="name">陈磊</div>
         <div class="role">角色美术 · 制作成员</div>
@@ -609,7 +609,7 @@ body{font-family:'Microsoft YaHei UI','PingFang SC','Noto Sans CJK SC',sans-seri
       <button class="hamburger" onclick="toggleSidebar()" aria-label="菜单">
         <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
       </button>
-      <div class="topbar-project">
+      <div class="topbar-project" onclick="toast('项目切换将在后续版本中实装')">
         黑神话新作 / BMZ
         <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
@@ -625,7 +625,7 @@ body{font-family:'Microsoft YaHei UI','PingFang SC','Noto Sans CJK SC',sans-seri
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           新建资产
         </button>
-        <div class="topbar-avatar">C</div>
+        <div class="topbar-avatar" onclick="toast('用户设置将在后续版本中实装')">C</div>
       </div>
     </header>
 
