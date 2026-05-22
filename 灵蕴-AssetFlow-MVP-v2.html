@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灵蕴 AssetFlow · 游戏科学研发生产中台</title>
+<style>
+/* ===== Reset & Base ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Microsoft YaHei UI','PingFang SC','Noto Sans CJK SC',sans-serif;font-size:14px;line-height:22px;color:var(--color-text-secondary);background:var(--color-bg-canvas);-webkit-font-smoothing:antialiased}
+
+/* ===== Design Tokens ===== */
+:root{
+  --color-bg-canvas:#0E0F0F;
+  --color-bg-shell:#151716;
+  --color-bg-panel:#1C1F1D;
+  --color-bg-elevated:#242824;
+  --color-border-subtle:#30362F;
+  --color-border-strong:#4B544A;
+  --color-text-primary:#ECE7DC;
+  --color-text-secondary:#B8B0A3;
+  --color-text-muted:#81796E;
+  --color-text-disabled:#5C5A54;
+  --color-text-inverse:#11120F;
+  --color-brand-primary:#C9A45B;
+  --color-brand-hover:#D8B86F;
+  --color-brand-pressed:#A9823D;
+  --color-accent-cinnabar:#B94A34;
+  --color-accent-jade:#5D8F7B;
+  --color-accent-blue:#5B7DAA;
+  --status-concept:#8E7CC3; --status-concept-bg:#282338;
+  --status-making:#5B7DAA; --status-making-bg:#202A38;
+  --status-review:#C9A45B; --status-review-bg:#342C1B;
+  --status-revision:#C87941; --status-revision-bg:#352719;
+  --status-passed:#6FA477; --status-passed-bg:#1F3024;
+  --status-stored:#8EA2A0; --status-stored-bg:#263130;
+  --status-blocked:#D65A4A; --status-blocked-bg:#3A211F;
+  --status-frozen:#8A8A82; --status-frozen-bg:#2B2C29;
+  --sidebar-width:240px; --topbar-height:64px;
+  --radius-sm:4px; --radius-md:6px; --radius-lg:8px;
+  --space-xs:4px; --space-sm:8px; --space-md:12px; --space-lg:16px; --space-xl:24px; --space-2xl:32px;
+  --font-mono:'JetBrains Mono','Consolas','Menlo',monospace;
+  --font-en:'Inter','Segoe UI','Arial',sans-serif;
+}
+
+/* ===== Layout ===== */
+.app{display:flex;height:100vh}
+.sidebar{width:var(--sidebar-width);min-width:var(--sidebar-width);background:var(--color-bg-shell);display:flex;flex-direction:column;border-right:1px solid var(--color-border-subtle);z-index:10}
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:var(--topbar-height);min-height:var(--topbar-height);background:var(--color-bg-shell);border-bottom:1px solid var(--color-border-subtle);display:flex;align-items:center;padding:0 var(--space-xl);gap:var(--space-lg);z-index:5}
+.content{flex:1;overflow-y:auto;padding:var(--space-xl)}
+.content::-webkit-scrollbar{width:6px}
+.content::-webkit-scrollbar-track{background:transparent}
+.content::-webkit-scrollbar-thumb{background:var(--color-border-subtle);border-radius:3px}
+.content::-webkit-scrollbar-thumb:hover{background:var(--color-border-strong)}
+
+/* Global scrollbar for all scrollable panels */
+.board-col-body::-webkit-scrollbar,
+.review-queue::-webkit-scrollbar,
+.revision-panel::-webkit-scrollbar,
+.detail-preview::-webkit-scrollbar,
+.side-stats::-webkit-scrollbar{width:4px}
+.board-col-body::-webkit-scrollbar-track,
+.review-queue::-webkit-scrollbar-track,
+.revision-panel::-webkit-scrollbar-track,
+.detail-preview::-webkit-scrollbar-track,
+.side-stats::-webkit-scrollbar-track{background:transparent}
+.board-col-body::-webkit-scrollbar-thumb,
+.review-queue::-webkit-scrollbar-thumb,
+.revision-panel::-webkit-scrollbar-thumb,
+.detail-preview::-webkit-scrollbar-thumb,
+.side-stats::-webkit-scrollbar-thumb{background:var(--color-border-subtle);border-radius:2px}
+.board-col-body::-webkit-scrollbar-thumb:hover,
+.review-queue::-webkit-scrollbar-thumb:hover,
+.revision-panel::-webkit-scrollbar-thumb:hover{background:var(--color-border-strong)}
+
+/* Selection */
+::selection{background:rgba(201,164,91,.25);color:var(--color-text-primary)}
+/* Focus ring */
+:focus-visible{outline:2px solid var(--color-brand-primary);outline-offset:2px;border-radius:2px}
+
+/* ===== Empty State ===== */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-2xl) var(--space-xl);text-align:center;gap:var(--space-md)}
+.empty-state svg{width:48px;height:48px;opacity:.25;stroke:var(--color-text-muted)}
+.empty-state .empty-title{font-size:14px;font-weight:500;color:var(--color-text-muted)}
+.empty-state .empty-desc{font-size:12px;color:var(--color-text-disabled);max-width:260px}
+
+/* ===== Skeleton ===== */
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:calc(200px + 100%) 0}}
+.skeleton{background:linear-gradient(90deg,var(--color-bg-elevated) 25%,var(--color-bg-panel) 37%,var(--color-bg-elevated) 63%);background-size:200px 100%;animation:shimmer 1.4s ease infinite;border-radius:var(--radius-sm)}
+.skel-card{height:280px;border-radius:var(--radius-lg)}
+.skel-row{height:16px;margin-bottom:var(--space-sm);width:60%}
+.skel-row.short{width:38%}
+
+/* ===== Sidebar ===== */
+.sidebar-logo{padding:20px var(--space-xl);border-bottom:1px solid var(--color-border-subtle)}
+.sidebar-logo h1{font-size:18px;font-weight:600;color:var(--color-brand-primary);letter-spacing:1px}
+.sidebar-logo span{font-size:11px;color:var(--color-text-muted);display:block;margin-top:2px}
+.sidebar-project{padding:var(--space-md) var(--space-xl);border-bottom:1px solid var(--color-border-subtle)}
+.sidebar-project .label{font-size:10px;color:var(--color-text-muted);text-transform:uppercase;margin-bottom:4px}
+.sidebar-project .name{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.sidebar-nav{flex:1;padding:var(--space-sm) 0}
+.sidebar-nav a{display:flex;align-items:center;gap:var(--space-md);padding:0 var(--space-xl);height:44px;color:var(--color-text-secondary);text-decoration:none;font-size:14px;transition:all 0.15s;position:relative}
+.sidebar-nav a:hover{background:rgba(255,255,255,0.03);color:var(--color-text-primary)}
+.sidebar-nav a.active{color:var(--color-brand-primary);background:rgba(201,164,91,0.08)}
+.sidebar-nav a.active::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--color-brand-primary);border-radius:0 2px 2px 0}
+.nav-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.nav-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-badge{margin-left:auto;font-size:11px;background:var(--color-accent-cinnabar);color:#fff;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.sidebar-user{padding:var(--space-lg) var(--space-xl);border-top:1px solid var(--color-border-subtle);display:flex;align-items:center;gap:var(--space-md)}
+.sidebar-user .avatar{width:32px;height:32px;border-radius:50%;background:var(--color-brand-primary);color:var(--color-text-inverse);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;font-family:var(--font-en)}
+.sidebar-user .info .name{font-size:13px;color:var(--color-text-primary);font-weight:500}
+.sidebar-user .info .role{font-size:11px;color:var(--color-text-muted)}
+
+/* ===== Topbar ===== */
+.topbar-project{font-size:15px;font-weight:600;color:var(--color-text-primary);display:flex;align-items:center;gap:var(--space-sm)}
+.topbar-project svg{width:16px;height:16px;stroke:var(--color-text-muted)}
+.topbar-search{flex:1;max-width:480px;position:relative}
+.topbar-search input{width:100%;height:36px;background:var(--color-bg-panel);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:0 var(--space-lg) 0 38px;color:var(--color-text-primary);font-size:13px;outline:none;transition:border-color 0.15s}
+.topbar-search input:focus{border-color:var(--color-border-strong)}
+.search-dropdown{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--color-bg-elevated);border:1px solid var(--color-border-strong);border-radius:var(--radius-md);max-height:300px;overflow-y:auto;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.search-dropdown .sd-item{display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) var(--space-md);cursor:pointer;border-bottom:1px solid var(--color-border-subtle);font-size:13px;transition:background .1s}
+.search-dropdown .sd-item:hover{background:var(--color-bg-panel)}
+.search-dropdown .sd-item:last-child{border-bottom:none}
+.search-dropdown .sd-type{font-size:10px;padding:2px 6px;border-radius:3px;flex-shrink:0}
+.sd-type.asset{background:var(--status-review-bg);color:var(--status-review)}
+.sd-type.task{background:var(--status-making-bg);color:var(--status-making)}
+.sd-type.spec{background:var(--status-concept-bg);color:var(--status-concept)}
+.topbar-search .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);width:16px;height:16px}
+.topbar-actions{display:flex;align-items:center;gap:var(--space-md);margin-left:auto}
+.topbar-actions .btn-new{height:34px;padding:0 var(--space-lg);background:var(--color-brand-primary);color:var(--color-text-inverse);border:none;border-radius:var(--radius-md);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background 0.15s}
+.topbar-actions .btn-new:hover{background:var(--color-brand-hover)}
+.topbar-actions .btn-new svg{width:14px;height:14px;stroke:var(--color-text-inverse)}
+.topbar-stat{font-size:12px;color:var(--color-text-muted);display:flex;align-items:center;gap:4px}
+.topbar-stat .value{font-size:14px;font-weight:600;color:var(--color-text-primary)}
+.topbar-stat.alert .value{color:var(--color-accent-cinnabar)}
+.topbar-avatar{width:32px;height:32px;border-radius:50%;background:var(--color-brand-primary);color:var(--color-text-inverse);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;font-family:var(--font-en);cursor:pointer}
+
+/* ===== Page Layouts ===== */
+.page{display:none}
+.page.active{display:block;animation:pageEnter .25s cubic-bezier(.16,1,.3,1)}
+@keyframes pageEnter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.page-header{margin-bottom:var(--space-xl)}
+.page-title{font-size:24px;font-weight:600;color:var(--color-text-primary);line-height:32px}
+.page-subtitle{font-size:13px;color:var(--color-text-muted);margin-top:var(--space-xs)}
+
+/* ===== Stats Row ===== */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-lg);margin-bottom:var(--space-xl)}
+.stat-card{background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);padding:var(--space-lg);transition:all .2s cubic-bezier(.16,1,.3,1)}
+.stat-card:hover{border-color:var(--color-border-strong);transform:translateY(-1px)}
+.stat-card .stat-value{font-size:28px;font-weight:600;color:var(--color-text-primary);line-height:34px;font-family:var(--font-en);transition:transform .15s}
+.stat-card:hover .stat-value{transform:scale(1.05)}
+.stat-card .stat-label{font-size:12px;color:var(--color-text-muted);margin-top:4px}
+.stat-card .stat-sub{font-size:11px;color:var(--color-accent-cinnabar);margin-top:2px}
+
+/* ===== Two Column ===== */
+.two-col{display:grid;grid-template-columns:1fr 360px;gap:var(--space-xl)}
+.panel{background:var(--color-bg-panel);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);overflow:hidden}
+.panel-header{padding:var(--space-lg) var(--space-xl);border-bottom:1px solid var(--color-border-subtle);display:flex;align-items:center;justify-content:space-between}
+.panel-title{font-size:15px;font-weight:600;color:var(--color-text-primary)}
+.panel-body{padding:var(--space-lg) var(--space-xl)}
+
+/* ===== Asset Card ===== */
+.asset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-lg)}
+.asset-card{background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);overflow:hidden;cursor:pointer;transition:all .2s cubic-bezier(.16,1,.3,1)}
+.asset-card:hover{border-color:var(--color-border-strong);transform:scale(1.01);box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.asset-card .card-thumb{aspect-ratio:16/9;background:radial-gradient(circle at 50% 40%,#1E2220 0%,var(--color-bg-panel) 100%);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.asset-card .card-thumb::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.015) 39px,rgba(255,255,255,0.015) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.015) 39px,rgba(255,255,255,0.015) 40px);pointer-events:none}
+.asset-card .card-thumb img{width:100%;height:100%;object-fit:cover}
+.asset-card .card-thumb .thumb-svg{width:55%;height:55%;opacity:0.6;transition:opacity 0.2s}
+.asset-card:hover .card-thumb .thumb-svg{opacity:0.85}
+.asset-card .card-thumb .thumb-code{position:absolute;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);font-family:var(--font-mono);pointer-events:none}
+.asset-card .card-thumb .risk-badge{position:absolute;top:8px;right:8px;width:24px;height:24px;background:var(--color-accent-cinnabar);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;z-index:2}
+.asset-card .card-body{padding:var(--space-md) var(--space-lg)}
+.asset-card .card-name{font-size:15px;font-weight:600;color:var(--color-text-primary);margin-bottom:4px}
+.asset-card .card-code{font-size:12px;color:var(--color-text-muted);font-family:var(--font-mono);margin-bottom:var(--space-md)}
+.asset-card .card-meta{display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap}
+.asset-card .card-footer{display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) var(--space-lg);border-top:1px solid var(--color-border-subtle)}
+.asset-card .card-footer span{font-size:12px;color:var(--color-text-muted)}
+
+/* ===== Status Badge ===== */
+.badge{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;white-space:nowrap}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.badge.concept{color:var(--status-concept);background:var(--status-concept-bg)} .badge.concept::before{background:var(--status-concept)}
+.badge.making,.badge.in-progress{color:var(--status-making);background:var(--status-making-bg)} .badge.making::before,.badge.in-progress::before{background:var(--status-making)}
+.badge.review,.badge.pending-review{color:var(--status-review);background:var(--status-review-bg)} .badge.review::before,.badge.pending-review::before{background:var(--status-review)}
+.badge.revision{color:var(--status-revision);background:var(--status-revision-bg)} .badge.revision::before{background:var(--status-revision)}
+.badge.passed,.badge.completed{color:var(--status-passed);background:var(--status-passed-bg)} .badge.passed::before,.badge.completed::before{background:var(--status-passed)}
+.badge.stored{color:var(--status-stored);background:var(--status-stored-bg)} .badge.stored::before{background:var(--status-stored)}
+.badge.blocked{color:var(--status-blocked);background:var(--status-blocked-bg)} .badge.blocked::before{background:var(--status-blocked)}
+.badge.frozen{color:var(--status-frozen);background:var(--status-frozen-bg)} .badge.frozen::before{background:var(--status-frozen)}
+
+/* risk levels */
+.badge.risk-high{color:#D65A4A;background:#3A211F} .badge.risk-high::before{background:#D65A4A}
+.badge.risk-mid{color:#C87941;background:#352719} .badge.risk-mid::before{background:#C87941}
+.badge.risk-low{color:#8A8A82;background:#2B2C29} .badge.risk-low::before{background:#8A8A82}
+
+/* ===== Filter Tags ===== */
+.filter-bar{display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-lg);flex-wrap:wrap}
+.filter-group{display:flex;align-items:center;gap:var(--space-sm)}
+.filter-group .label{font-size:12px;color:var(--color-text-muted);margin-right:2px}
+.filter-tag{height:28px;padding:0 var(--space-md);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);font-size:12px;color:var(--color-text-secondary);background:transparent;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all 0.15s}
+.filter-tag:hover{border-color:var(--color-border-strong);color:var(--color-text-primary)}
+.filter-tag.active{background:var(--color-brand-primary);border-color:var(--color-brand-primary);color:var(--color-text-inverse);font-weight:500}
+.filter-tag .close{margin-left:2px;width:14px;height:14px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:10px}
+.filter-tag.active .close:hover{background:rgba(0,0,0,0.2)}
+.filter-search{margin-left:auto}
+.filter-search input{height:32px;width:240px;background:var(--color-bg-panel);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:0 var(--space-md) 0 32px;color:var(--color-text-primary);font-size:12px;outline:none}
+.filter-search input:focus{border-color:var(--color-border-strong)}
+.filter-search{position:relative}
+.filter-search .s-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:14px}
+
+/* ===== Side Stats Panel ===== */
+.side-stats{display:flex;flex-direction:column;gap:var(--space-lg)}
+.stat-mini-card{background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);padding:var(--space-lg)}
+.stat-mini-card .value{font-size:28px;font-weight:600;color:var(--color-text-primary);font-family:var(--font-en)}
+.stat-mini-card .label{font-size:12px;color:var(--color-text-muted);margin-top:4px}
+
+/* ===== Tables ===== */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th,.data-table td{padding:var(--space-md) var(--space-lg);text-align:left;font-size:13px}
+.data-table th{font-size:11px;font-weight:500;color:var(--color-text-muted);text-transform:uppercase;background:var(--color-bg-panel);border-bottom:1px solid var(--color-border-subtle)}
+.data-table td{color:var(--color-text-secondary);border-bottom:1px solid var(--color-border-subtle)}
+.data-table tr{cursor:pointer;transition:background 0.1s}
+.data-table tbody tr:hover{background:rgba(255,255,255,0.02)}
+.data-table .asset-link{color:var(--color-brand-primary);font-weight:500;cursor:pointer}
+.data-table .asset-link:hover{text-decoration:underline}
+.data-table .code{font-family:var(--font-mono);font-size:12px;color:var(--color-text-muted)}
+.ver-expand{display:inline-block;width:14px;font-size:10px;transition:transform .15s;color:var(--color-text-muted)}
+.ver-row.expanded .ver-expand{transform:rotate(90deg)}
+.ver-row:hover{background:var(--color-bg-elevated)}
+
+/* ===== Task Board ===== */
+.board{display:flex;gap:var(--space-lg);overflow-x:auto;min-height:calc(100vh - 200px)}
+.board-column{flex:1;min-width:220px;max-width:280px;display:flex;flex-direction:column}
+.board-col-header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-md) var(--space-lg);margin-bottom:var(--space-sm);border-radius:var(--radius-md)}
+.board-col-header.h-notstarted{background:rgba(138,138,130,0.1)}
+.board-col-header.h-inprogress{background:rgba(91,125,170,0.1)}
+.board-col-header.h-blocked{background:rgba(214,90,74,0.1)}
+.board-col-header.h-pendingreview{background:rgba(201,164,91,0.1)}
+.board-col-header.h-completed{background:rgba(111,164,119,0.1)}
+.board-col-title{font-size:13px;font-weight:600;color:var(--color-text-primary)}
+.board-col-count{font-size:12px;color:var(--color-text-muted)}
+.board-col-body{flex:1;overflow-y:auto;padding:0 var(--space-sm);display:flex;flex-direction:column;gap:var(--space-sm);min-height:60px;transition:background 0.15s}
+.board-col-body.drag-over{background:rgba(201,164,91,0.08);border-radius:var(--radius-md)}
+
+/* Task Card */
+.task-card{background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:var(--space-md);cursor:grab;transition:all .15s cubic-bezier(.16,1,.3,1);position:relative;overflow:hidden}
+.task-card:hover{border-color:var(--color-border-strong);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.task-card:active{cursor:grabbing}
+.task-card.dragging{opacity:.5;border:2px dashed var(--color-brand-primary);box-shadow:0 8px 24px rgba(0,0,0,.3);transform:rotate(1deg) scale(1.03)}
+.task-check{position:absolute;top:10px;right:10px;width:18px;height:18px;cursor:pointer;z-index:5;opacity:.5;transition:all .15s}
+.task-check:hover{opacity:1}
+.task-card.task-done .task-title{text-decoration:line-through;opacity:.45}
+.task-card.task-done{opacity:.65}
+.line-through{text-decoration:line-through;opacity:.45}
+.task-card .task-priority{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px}
+.task-card .task-priority.p0{background:#D65A4A}
+.task-card .task-priority.p1{background:#C87941}
+.task-card .task-priority.p2{background:#5B7DAA}
+.task-card .task-priority.p3{background:#8A8A82}
+.task-card .task-title{font-size:13px;font-weight:600;color:var(--color-text-primary);margin-bottom:6px;padding-left:var(--space-sm)}
+.task-card .task-asset{font-size:11px;color:var(--color-text-muted);margin-bottom:var(--space-sm);padding-left:var(--space-sm)}
+.task-card .task-meta{display:flex;align-items:center;justify-content:space-between;padding-left:var(--space-sm)}
+.task-card.blocked-card{border-color:var(--status-blocked);border-width:1.5px}
+.task-card.blocked-card .task-priority{background:var(--status-blocked)}
+
+/* ===== Detail Panel ===== */
+.detail-layout{display:grid;grid-template-columns:1fr 320px 340px;gap:var(--space-xl);min-height:calc(100vh - 180px)}
+.detail-preview{background:radial-gradient(circle at 50% 40%,#1E2220 0%,var(--color-bg-panel) 100%);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;min-height:400px;position:relative;overflow:hidden}
+.detail-preview::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.015) 39px,rgba(255,255,255,0.015) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.015) 39px,rgba(255,255,255,0.015) 40px);pointer-events:none}
+.detail-preview .preview-label{position:absolute;bottom:var(--space-lg);left:var(--space-lg);font-size:11px;color:var(--color-text-muted);font-family:var(--font-mono)}
+.detail-info{display:flex;flex-direction:column;gap:var(--space-lg)}
+.detail-actions{display:flex;gap:var(--space-sm)}
+.detail-actions button{height:36px;padding:0 var(--space-lg);border-radius:var(--radius-md);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s}
+.btn-primary{background:var(--color-brand-primary);color:var(--color-text-inverse);transition:all .15s}
+.btn-primary:hover{background:var(--color-brand-hover)}
+.btn-primary:active{transform:scale(.97)}
+.btn-secondary{background:transparent;border:1px solid var(--color-border-strong);color:var(--color-text-primary);transition:all .15s}
+.btn-secondary:hover{background:var(--color-bg-elevated)}
+.btn-secondary:active{transform:scale(.97)}
+.btn-danger{background:transparent;border:1px solid var(--color-accent-cinnabar);color:var(--color-accent-cinnabar);transition:all .15s}
+.btn-danger:hover{background:rgba(185,74,52,.1)}
+.btn-danger:active{transform:scale(.97)}
+.info-table{width:100%}
+.info-table td{padding:var(--space-sm) 0;font-size:13px}
+.info-table td:first-child{color:var(--color-text-muted);width:80px}
+.info-table td:last-child{color:var(--color-text-primary);font-weight:500}
+.section-title{font-size:13px;font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-sm);padding-bottom:var(--space-sm);border-bottom:1px solid var(--color-border-subtle)}
+
+/* ===== Timeline ===== */
+.timeline{display:flex;flex-direction:column;gap:0}
+.timeline-item{position:relative;padding-left:28px;padding-bottom:var(--space-lg)}
+.timeline-item::before{content:'';position:absolute;left:8px;top:14px;bottom:-12px;width:2px;background:var(--color-border-subtle)}
+.timeline-item:last-child::before{display:none}
+.timeline-dot{position:absolute;left:4px;top:8px;width:10px;height:10px;border-radius:50%;border:2px solid var(--color-text-muted)}
+.timeline-dot.revision-dot{border-color:var(--color-accent-cinnabar);background:rgba(185,74,52,0.2)}
+.timeline-dot.blue-dot{border-color:var(--color-accent-blue);background:rgba(91,125,170,0.2)}
+.timeline-dot.pass-dot{border-color:var(--status-passed);background:rgba(111,164,119,0.2)}
+.timeline-content{background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:var(--space-md)}
+.timeline-content.revision-box{border-color:var(--color-accent-cinnabar)}
+.timeline-content.blue-box{border-color:var(--color-accent-blue)}
+.timeline-content.pass-box{border-color:var(--status-passed)}
+.timeline-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.timeline-author{font-size:13px;font-weight:600;color:var(--color-text-primary)}
+.timeline-time{font-size:11px;color:var(--color-text-muted)}
+.timeline-text{font-size:13px;color:var(--color-text-secondary);line-height:20px}
+
+/* ===== Review Center ===== */
+.review-layout{display:grid;grid-template-columns:280px 1fr 300px;gap:var(--space-xl);min-height:calc(100vh - 180px)}
+.review-queue{background:var(--color-bg-panel);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);overflow:hidden}
+.queue-item{padding:var(--space-md) var(--space-lg);border-bottom:1px solid var(--color-border-subtle);cursor:pointer;transition:background 0.15s}
+.queue-item:hover{background:rgba(255,255,255,0.02)}
+.queue-item.active{background:rgba(201,164,91,0.08);border-left:3px solid var(--color-brand-primary)}
+.queue-item .q-name{font-size:13px;font-weight:600;color:var(--color-text-primary)}
+.queue-item .q-meta{font-size:11px;color:var(--color-text-muted);margin-top:4px;display:flex;align-items:center;gap:var(--space-sm)}
+.review-main{display:flex;flex-direction:column;gap:var(--space-lg)}
+.review-preview{background:radial-gradient(circle at 50% 40%,#1E2220 0%,var(--color-bg-panel) 100%);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);min-height:240px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.review-preview::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.015) 39px,rgba(255,255,255,0.015) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.015) 39px,rgba(255,255,255,0.015) 40px);pointer-events:none}
+.review-annotations{background:var(--color-bg-panel);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg)}
+.ann-item{padding:var(--space-md) var(--space-lg);border-bottom:1px solid var(--color-border-subtle)}
+.ann-item:last-child{border-bottom:none}
+.ann-idx{font-size:12px;color:var(--color-brand-primary);font-weight:600;margin-right:6px}
+.ann-author{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.ann-text{font-size:13px;color:var(--color-text-secondary);margin-top:4px;padding-left:var(--space-lg)}
+.review-actions{display:flex;gap:var(--space-md);justify-content:flex-end}
+.review-actions button{height:40px;padding:0 var(--space-2xl);border-radius:var(--radius-md);font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s}
+.btn-approve{background:var(--color-brand-primary);color:var(--color-text-inverse)}
+.btn-approve:hover{background:var(--color-brand-hover)}
+.btn-revise{background:transparent;border:1px solid var(--color-accent-cinnabar);color:var(--color-accent-cinnabar)}
+.btn-revise:hover{background:rgba(185,74,52,0.1)}
+
+.revision-panel{display:flex;flex-direction:column;gap:var(--space-md)}
+.rev-item{background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:var(--space-md)}
+.rev-item .rev-desc{font-size:13px;color:var(--color-text-primary);margin-bottom:6px}
+.rev-item .rev-meta{font-size:11px;color:var(--color-text-muted);display:flex;align-items:center;gap:var(--space-md)}
+.rev-item .rev-deadline{color:var(--color-accent-cinnabar);font-weight:500}
+
+/* ===== Spec Library ===== */
+.spec-tabs{display:flex;gap:var(--space-sm);margin-bottom:var(--space-lg);border-bottom:1px solid var(--color-border-subtle);padding-bottom:var(--space-md)}
+.spec-tab{padding:var(--space-sm) var(--space-lg);font-size:13px;color:var(--color-text-muted);cursor:pointer;border-radius:var(--radius-md);transition:all 0.15s;border:1px solid transparent;display:flex;align-items:center;gap:6px}
+.spec-tab:hover{color:var(--color-text-primary)}
+.spec-tab.active{color:var(--color-brand-primary);border-color:var(--color-brand-primary);background:rgba(201,164,91,0.08)}
+.spec-tab .count{font-size:11px;opacity:0.7}
+.spec-card{background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);padding:var(--space-lg);margin-bottom:var(--space-md);cursor:pointer;transition:border-color 0.15s}
+.spec-card:hover{border-color:var(--color-border-strong)}
+.spec-card .spec-title{font-size:15px;font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-sm)}
+.spec-card .spec-tags{display:flex;gap:var(--space-sm);margin-bottom:var(--space-sm)}
+.spec-card .spec-meta{font-size:11px;color:var(--color-text-muted)}
+.spec-stat-card{background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);padding:var(--space-lg);margin-bottom:var(--space-md)}
+.spec-stat-card .stat-big{font-size:24px;font-weight:600;color:var(--color-brand-primary);font-family:var(--font-en)}
+.spec-stat-card .stat-desc{font-size:12px;color:var(--color-text-secondary);margin-top:4px}
+.spec-stat-card .stat-trend{font-size:12px;color:var(--status-passed);margin-top:2px}
+
+/* ===== Risk Page ===== */
+.risk-table .reason{color:var(--color-accent-cinnabar);font-size:12px;max-width:200px}
+.risk-bar-chart{margin-top:var(--space-lg)}
+.bar-row{display:flex;align-items:center;gap:var(--space-md);margin-bottom:var(--space-md)}
+.bar-label{width:60px;font-size:13px;color:var(--color-text-secondary);text-align:right}
+.bar-track{flex:1;height:24px;background:var(--color-bg-panel);border-radius:var(--radius-sm);overflow:hidden}
+.bar-fill{height:100%;border-radius:var(--radius-sm);transition:width 0.3s}
+.bar-fill.role{background:var(--status-review)}
+.bar-fill.scene{background:var(--status-making)}
+.bar-fill.fx{background:var(--status-revision)}
+.bar-fill.anim{background:var(--status-passed)}
+.bar-fill.audio{background:var(--status-frozen)}
+.bar-value{width:50px;font-size:13px;font-weight:600;color:var(--color-text-primary);font-family:var(--font-en)}
+
+/* ===== Toast ===== */
+.toast-container{position:fixed;top:var(--topbar-height);right:var(--space-xl);z-index:100;display:flex;flex-direction:column;gap:var(--space-sm)}
+.toast{background:var(--color-bg-elevated);border:1px solid var(--color-border-strong);border-radius:var(--radius-md);padding:var(--space-md) var(--space-lg);font-size:13px;color:var(--color-text-primary);box-shadow:0 8px 24px rgba(0,0,0,0.3);animation:slideIn 0.2s ease;min-width:200px}
+.toast.success{border-color:var(--status-passed)}
+.toast.error{border-color:var(--color-accent-cinnabar)}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ===== Modal ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.15s}
+.modal{background:var(--color-bg-panel);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);width:480px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,0.4)}
+.modal.danger{border-color:var(--color-accent-cinnabar)}
+.modal-header{padding:var(--space-lg) var(--space-xl);border-bottom:1px solid var(--color-border-subtle);display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:16px;font-weight:600;color:var(--color-text-primary)}
+.modal.danger .modal-header h3{color:var(--color-accent-cinnabar)}
+.modal-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--color-text-muted);cursor:pointer;border-radius:var(--radius-sm);font-size:16px}
+.modal-close:hover{background:var(--color-bg-elevated);color:var(--color-text-primary)}
+.modal-body{padding:var(--space-xl)}
+.modal-body .form-group{margin-bottom:var(--space-lg)}
+.modal-body label{display:block;font-size:12px;color:var(--color-text-muted);margin-bottom:6px}
+.modal-body input,.modal-body select,.modal-body textarea{width:100%;height:36px;background:var(--color-bg-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:0 var(--space-md);color:var(--color-text-primary);font-size:13px;outline:none;font-family:inherit}
+.modal-body textarea{height:80px;padding:var(--space-sm) var(--space-md);resize:vertical}
+.modal-body input:focus,.modal-body select:focus,.modal-body textarea:focus{border-color:var(--color-border-strong)}
+.modal-footer{padding:var(--space-lg) var(--space-xl);border-top:1px solid var(--color-border-subtle);display:flex;justify-content:flex-end;gap:var(--space-sm)}
+.modal-footer button{height:36px;padding:0 var(--space-xl);border-radius:var(--radius-md);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ===== Dashboard specific ===== */
+.dash-layout{display:grid;grid-template-columns:1fr 360px;gap:var(--space-xl)}
+.asset-row{display:flex;gap:var(--space-lg);margin-bottom:var(--space-lg);overflow-x:auto}
+.asset-row .asset-card{min-width:280px;flex-shrink:0}
+.task-list-item{display:flex;align-items:center;padding:var(--space-md) var(--space-lg);border-bottom:1px solid var(--color-border-subtle);cursor:pointer;transition:background 0.15s;gap:var(--space-md)}
+.task-list-item:hover{background:rgba(255,255,255,0.02)}
+.task-list-item:last-child{border-bottom:none}
+.task-list-item .task-check{width:18px;height:18px;border:1.5px solid var(--color-border-strong);border-radius:50%;flex-shrink:0}
+.task-list-item .task-info{flex:1}
+.task-list-item .task-info .t-name{font-size:13px;color:var(--color-text-primary)}
+.task-list-item .task-info .t-asset{font-size:11px;color:var(--color-text-muted);margin-top:2px}
+.pending-section{margin-bottom:var(--space-lg)}
+.pending-section .ps-title{font-size:11px;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;margin-bottom:var(--space-sm);padding:0 var(--space-lg)}
+.pending-item{padding:var(--space-md) var(--space-lg);border-bottom:1px solid var(--color-border-subtle)}
+.pending-item:last-child{border-bottom:none}
+.pending-item .pi-name{font-size:13px;color:var(--color-text-primary);font-weight:500}
+.pending-item .pi-desc{font-size:11px;color:var(--color-text-muted);margin-top:2px}
+
+/* ===== Spec Tag ===== */
+.spec-tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:500;border:1px solid}
+.spec-tag.art{border-color:var(--status-concept);color:var(--status-concept)}
+.spec-tag.perf{border-color:var(--status-making);color:var(--status-making)}
+.spec-tag.outsource{border-color:var(--status-revision);color:var(--status-revision)}
+.spec-tag.case{border-color:var(--status-passed);color:var(--status-passed)}
+
+/* ===== Animations ===== */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.animate-pulse{animation:pulse 2s ease-in-out infinite}
+/* ===== Responsive: 1280px Breakpoint ===== */
+@media(max-width:1280px){
+  :root{--sidebar-width:56px}
+  .sidebar .brand-name,.sidebar .nav-label,.sidebar .project-switch{display:none}
+  .sidebar .nav-item{justify-content:center;padding:var(--space-md) 0}
+  .sidebar .nav-icon{font-size:18px;margin:0}
+  .sidebar .brand{padding:var(--space-lg) var(--space-sm);justify-content:center}
+  .sidebar .brand-icon{font-size:28px;margin:0}
+  .sidebar .topbar-right{flex-wrap:wrap;gap:var(--space-sm)}
+  .detail-layout{grid-template-columns:1fr}
+  .detail-preview{min-height:280px}
+  .review-layout{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .topbar-right .btn-primary{font-size:12px;padding:6px 10px}
+  .filter-bar{overflow-x:auto;flex-wrap:nowrap}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>灵蕴 AssetFlow</h1>
+      <span>游戏科学研发生产中台</span>
+    </div>
+    <div class="sidebar-project">
+      <div class="label">当前项目</div>
+      <div class="name">黑神话新作 / BMZ</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#/dashboard" class="active" data-route="dashboard">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+        工作台
+      </a>
+      <a href="#/assets" data-route="assets">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
+        资产库
+        <span class="nav-badge">126</span>
+      </a>
+      <a href="#/tasks" data-route="tasks">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg></span>
+        任务看板
+        <span class="nav-badge">5</span>
+      </a>
+      <a href="#/reviews" data-route="reviews">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+        评审中心
+        <span class="nav-badge">8</span>
+      </a>
+      <a href="#/specs" data-route="specs">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+        规范库
+      </a>
+      <a href="#/risks" data-route="risks">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        项目风险
+        <span class="nav-badge" style="background:var(--color-accent-cinnabar)">7</span>
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="avatar">C</div>
+      <div class="info">
+        <div class="name">陈磊</div>
+        <div class="role">角色美术 · 制作成员</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Area -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-project">
+        黑神话新作 / BMZ
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="topbar-search" style="position:relative">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="搜索资产、任务、规范..." id="globalSearch" autocomplete="off">
+        <div class="search-dropdown" id="searchDropdown" style="display:none"></div>
+      </div>
+      <div class="topbar-actions">
+        <div class="topbar-stat">今日待处理 <span class="value">18</span></div>
+        <div class="topbar-stat alert">阻塞 <span class="value">3</span></div>
+        <button class="btn-new" id="btnNewAsset">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新建资产
+        </button>
+        <div class="topbar-avatar">C</div>
+      </div>
+    </header>
+
+    <main class="content" id="pageContent"></main>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ==================== MOCK DATA ====================
+const ASSETS = [
+  {id:'a1',name:'鬼将军',code:'BMZ_Character_GhostGeneral_042',project:'BMZ',type:'角色',module:'第三章-古寺',owner:'陈磊',collaborators:['李澈','周宁'],stage:'待评审',priority:'P0',deadline:'2026-06-15',version:'v1.8',revisionCount:2,risk:'low'},
+  {id:'a2',name:'古寺山门',code:'BMZ_Env_TempleGate_016',project:'BMZ',type:'场景',module:'第三章-古寺',owner:'场景组',collaborators:[],stage:'制作中',priority:'P1',deadline:'2026-06-30',version:'v0.4',revisionCount:0,risk:'none'},
+  {id:'a3',name:'火焰爆裂',code:'BMZ_FX_FireBurst_009',project:'BMZ',type:'特效',module:'第二章-峡谷',owner:'周宁',collaborators:['李澈'],stage:'返修中',priority:'P0',deadline:'2026-05-28',version:'v1.2',revisionCount:1,risk:'mid'},
+  {id:'a4',name:'折返隧道',code:'BMZ_Level_LoopTunnel_003',project:'BMZ',type:'关卡',module:'第四章-地宫',owner:'关卡组',collaborators:[],stage:'已通过',priority:'P2',deadline:'2026-05-10',version:'v2.1',revisionCount:0,risk:'none'},
+  {id:'a5',name:'青铜法器',code:'BMZ_Prop_BronzeVessel_021',project:'BMZ',type:'道具',module:'通用',owner:'道具组',collaborators:[],stage:'已入库',priority:'P2',deadline:'2026-04-20',version:'v3.0',revisionCount:0,risk:'none'},
+  {id:'a6',name:'Boss过场镜头',code:'BMZ_Cine_BossIntro_007',project:'BMZ',type:'镜头',module:'第三章-古寺',owner:'陈磊',collaborators:[],stage:'阻塞',priority:'P0',deadline:'2026-05-25',version:'v0.6',revisionCount:0,risk:'high'},
+  {id:'a7',name:'守门树精',code:'BMZ_Character_TreeGuard_015',project:'BMZ',type:'角色',module:'第一章-森林',owner:'王宇',collaborators:['外包-A组'],stage:'制作中',priority:'P1',deadline:'2026-06-20',version:'v0.3',revisionCount:0,risk:'none'},
+  {id:'a8',name:'崩碎岩石',code:'BMZ_VFX_RockShatter_012',project:'BMZ',type:'特效',module:'第一章-森林',owner:'周宁',collaborators:[],stage:'待评审',priority:'P1',deadline:'2026-05-30',version:'v1.0',revisionCount:0,risk:'none'},
+  {id:'a9',name:'无头僧',code:'BMZ_Character_HeadlessMonk_038',project:'BMZ',type:'怪物',module:'第四章-地宫',owner:'赵明',collaborators:[],stage:'概念中',priority:'P2',deadline:'2026-08-01',version:'-',revisionCount:0,risk:'none'},
+  {id:'a10',name:'古寺钟声',code:'BMZ_Audio_TempleBell_005',project:'BMZ',type:'音频',module:'第三章-古寺',owner:'音频组',collaborators:[],stage:'已通过',priority:'P2',deadline:'2026-05-15',version:'v1.3',revisionCount:0,risk:'none'},
+  {id:'a11',name:'战斗UI主界面',code:'BMZ_UI_BattleHUD_002',project:'BMZ',type:'UI',module:'系统',owner:'UI组',collaborators:[],stage:'返修中',priority:'P1',deadline:'2026-06-01',version:'v1.5',revisionCount:3,risk:'mid'},
+  {id:'a12',name:'灵石材质',code:'BMZ_Mat_SpiritStone_018',project:'BMZ',type:'材质',module:'通用',owner:'TA-李澈',collaborators:[],stage:'已入库',priority:'P3',deadline:'2026-04-01',version:'v2.0',revisionCount:0,risk:'none'},
+  {id:'a13',name:'猴子原型',code:'BMZ_Character_Monkey_001',project:'BMZ',type:'角色',module:'核心',owner:'陈磊',collaborators:['李澈','周宁'],stage:'制作中',priority:'P0',deadline:'2026-07-15',version:'v0.9',revisionCount:1,risk:'low'},
+  {id:'a14',name:'天兵阵列',code:'BMZ_AI_SoldierSquad_011',project:'BMZ',type:'蓝图',module:'第二章-峡谷',owner:'程序组',collaborators:[],stage:'已冻结',priority:'P2',deadline:'2026-05-01',version:'v1.0',revisionCount:0,risk:'none'},
+  {id:'a15',name:'腾云动画',code:'BMZ_Anim_CloudRide_006',project:'BMZ',type:'动画',module:'核心',owner:'动画组',collaborators:['陈磊'],stage:'待评审',priority:'P1',deadline:'2026-06-10',version:'v1.1',revisionCount:2,risk:'low'},
+];
+
+const TASKS = [
+  {id:'t1',title:'调整玻璃破碎质感',assetId:'a1',assetName:'鬼将军',type:'制作',owner:'陈磊',priority:'P0',status:'进行中',deadline:'2026-05-25',blockReason:''},
+  {id:'t2',title:'补充二阶段受击动作',assetId:'a1',assetName:'鬼将军',type:'制作',owner:'陈磊',priority:'P1',status:'未开始',deadline:'2026-05-28',blockReason:''},
+  {id:'t3',title:'修正骨骼绑定穿插',assetId:'a1',assetName:'鬼将军',type:'返修',owner:'陈磊',priority:'P0',status:'待评审',deadline:'2026-05-24',blockReason:''},
+  {id:'t4',title:'提交Boss近景截图',assetId:'a1',assetName:'鬼将军',type:'制作',owner:'陈磊',priority:'P1',status:'已完成',deadline:'2026-05-20',blockReason:''},
+  {id:'t5',title:'LOD模型生成',assetId:'a2',assetName:'古寺山门',type:'制作',owner:'场景组',priority:'P1',status:'进行中',deadline:'2026-06-15',blockReason:''},
+  {id:'t6',title:'优化粒子发射器性能',assetId:'a3',assetName:'火焰爆裂',type:'优化',owner:'周宁',priority:'P0',status:'进行中',deadline:'2026-05-26',blockReason:''},
+  {id:'t7',title:'补全缺失通道贴图',assetId:'a6',assetName:'Boss过场镜头',type:'补充',owner:'陈磊',priority:'P0',status:'阻塞',deadline:'2026-05-25',blockReason:'动频缺帧·需动捕数据'},
+  {id:'t8',title:'外包模型验收',assetId:'a7',assetName:'守门树精',type:'制作',owner:'王宇',priority:'P1',status:'进行中',deadline:'2026-06-20',blockReason:''},
+  {id:'t9',title:'概念设计定稿',assetId:'a9',assetName:'无头僧',type:'制作',owner:'赵明',priority:'P2',status:'未开始',deadline:'2026-07-15',blockReason:''},
+  {id:'t10',title:'UI动效联调',assetId:'a11',assetName:'战斗UI主界面',type:'返修',owner:'UI组',priority:'P1',status:'进行中',deadline:'2026-05-30',blockReason:''},
+  {id:'t11',title:'初版骨骼搭建',assetId:'a13',assetName:'猴子原型',type:'制作',owner:'陈磊',priority:'P0',status:'待评审',deadline:'2026-06-01',blockReason:''},
+  {id:'t12',title:'动作捕捉数据清洗',assetId:'a15',assetName:'腾云动画',type:'制作',owner:'动画组',priority:'P1',status:'未开始',deadline:'2026-06-05',blockReason:''},
+  {id:'t13',title:'场景光照烘焙',assetId:'a2',assetName:'古寺山门',type:'优化',owner:'场景组',priority:'P2',status:'进行中',deadline:'2026-06-25',blockReason:''},
+  {id:'t14',title:'音效素材库整理',assetId:'a10',assetName:'古寺钟声',type:'制作',owner:'音频组',priority:'P3',status:'已完成',deadline:'2026-05-15',blockReason:''},
+  {id:'t15',title:'蓝图逻辑测试',assetId:'a14',assetName:'天兵阵列',type:'制作',owner:'程序组',priority:'P2',status:'进行中',deadline:'2026-05-20',blockReason:''},
+  {id:'t16',title:'材质实例合并优化',assetId:'a3',assetName:'火焰爆裂',type:'优化',owner:'TA-李澈',priority:'P1',status:'未开始',deadline:'2026-06-02',blockReason:''},
+  {id:'t17',title:'关卡白盒搭建',assetId:'a4',assetName:'折返隧道',type:'制作',owner:'关卡组',priority:'P2',status:'已完成',deadline:'2026-05-08',blockReason:''},
+  {id:'t18',title:'粒子特效性能优化',assetId:'a8',assetName:'崩碎岩石',type:'优化',owner:'周宁',priority:'P1',status:'进行中',deadline:'2026-05-28',blockReason:''},
+  {id:'t19',title:'角色高模拓扑',assetId:'a13',assetName:'猴子原型',type:'制作',owner:'陈磊',priority:'P0',status:'阻塞',deadline:'2026-06-10',blockReason:'等待概念设计确认'},
+  {id:'t20',title:'音效空间化设置',assetId:'a10',assetName:'古寺钟声',type:'制作',owner:'音频组',priority:'P3',status:'待评审',deadline:'2026-05-22',blockReason:''},
+];
+
+const REVIEWS = [
+  {id:'r1',title:'鬼将军 v1.8 评审',assetId:'a1',submitter:'陈磊',reviewers:['主美-张','TA-李澈'],conclusion:'返修',reviewTime:'2026-05-21 15:30',
+    annotations:[
+      {author:'主美-张',role:'主美',time:'05-21 15:45',content:'铠甲纹理需加强高光对比，目前整体偏灰。参考原画第3版材质表现。'},
+      {author:'TA-李澈',role:'技术美术',time:'05-21 16:10',content:'骨骼绑定存在轻微穿插，建议在肩部关节处增加1-2根辅助骨骼。'},
+      {author:'主美-张',role:'主美',time:'05-21 16:30',content:'面部表情的 blend shape 过渡不够自然，从愤怒到平静的中间帧需要补充。'}
+    ],
+    revisionItems:[
+      {desc:'披挂破损层级',owner:'陈磊',deadline:'今天 18:00',status:'待处理'},
+      {desc:'材质实例合并',owner:'TA-李澈',deadline:'明天 12:00',status:'进行中'},
+      {desc:'二阶段特效同步',owner:'特效-周宁',deadline:'周五',status:'待处理'},
+    ]
+  },
+  {id:'r2',title:'鬼将军 v1.2 返修复审',assetId:'a1',submitter:'陈磊',reviewers:['主美-张'],conclusion:'返修',reviewTime:'2026-05-18 10:00',
+    annotations:[{author:'主美-张',role:'主美',time:'05-18 10:20',content:'返修后铠甲质感有改善，但披风物理模拟仍有异常抖动。'}],
+    revisionItems:[{desc:'披风物理模拟修正',owner:'陈磊',deadline:'05-20',status:'已完成'}]
+  },
+  {id:'r3',title:'鬼将军 v1.0 初版评审',assetId:'a1',submitter:'陈磊',reviewers:['主美-张','TA-李澈'],conclusion:'返修',reviewTime:'2026-05-10 14:00',
+    annotations:[{author:'主美-张',role:'主美',time:'05-10 14:30',content:'初版整体比例正确，但铠甲细节度不足。参考古画中明光铠的纹样。'}],
+    revisionItems:[{desc:'铠甲纹样补充',owner:'陈磊',deadline:'05-15',status:'已完成'}]
+  },
+  {id:'r4',title:'Boss过场镜头 v0.6 搁置评审',assetId:'a6',submitter:'陈磊',reviewers:['制作人-王'],conclusion:'搁置',reviewTime:'2026-05-19 11:00',
+    annotations:[{author:'制作人-王',role:'制作人',time:'05-19 11:15',content:'动频缺帧问题未解决前无法评估镜头效果，暂时搁置。'}],
+    revisionItems:[]
+  },
+  {id:'r5',title:'古寺山门 LOD 评审',assetId:'a2',submitter:'场景组',reviewers:['主美-张'],conclusion:'通过',reviewTime:'2026-05-20 16:00',
+    annotations:[{author:'主美-张',role:'主美',time:'05-20 16:10',content:'LOD0-LOD3过渡平滑，远近景差异控制得当。通过。'}],
+    revisionItems:[]
+  },
+  {id:'r6',title:'猴子原型 v0.9 初评',assetId:'a13',submitter:'陈磊',reviewers:['主美-张','制作人-王'],conclusion:'返修',reviewTime:'2026-05-22 09:00',
+    annotations:[{author:'主美-张',role:'主美',time:'05-22 09:20',content:'毛发密度需要增加，当前在远景下丢失细节。建议参考真猴子的毛发分布。'}],
+    revisionItems:[{desc:'毛发密度提升',owner:'陈磊',deadline:'05-25',status:'待处理'}]
+  },
+];
+
+const SPECS = [
+  {id:'s1',title:'角色建模面数规范 v2.1',category:'美术规范',tags:['美术','性能'],scope:'角色/怪物-制作阶段',summary:'单体角色面数控制在5-8万三角面，Boss类角色可放宽至12万。LOD0面数不超过LOD1的2.5倍。',maintainer:'主美-张',updateDate:'2026-05-10',refCount:18},
+  {id:'s2',title:'PBR材质制作流程规范',category:'美术规范',tags:['美术'],scope:'全类型-制作阶段',summary:'所有材质统一采用PBR流程。BaseColor不使用纯黑纯白（限制在30-240 sRGB）。金属度贴图必须为灰度图。',maintainer:'TA-李澈',updateDate:'2026-05-05',refCount:24},
+  {id:'s3',title:'骨骼绑定命名与层级规范',category:'动画规范',tags:['动画'],scope:'角色/怪物-制作阶段',summary:'骨骼命名前缀：root_/spine_/arm_L_/arm_R_/leg_L_/leg_R_。IK与FK骨骼明确区分命名后缀。',maintainer:'动画组',updateDate:'2026-04-28',refCount:15},
+  {id:'s4',title:'动画关键帧密度标准',category:'动画规范',tags:['动画','性能'],scope:'角色/怪物-动画阶段',summary:'常规动画30fps关键帧，过场动画60fps。循环动画起始帧与结束帧需完全一致（含骨骼变换）。',maintainer:'动画组',updateDate:'2026-04-15',refCount:12},
+  {id:'s5',title:'GPU性能预算分配表',category:'性能预算',tags:['性能'],scope:'全类型-全阶段',summary:'PS5目标：4K/30fps。GPU预算：角色12ms/场景15ms/特效8ms/UI 2ms/后处理3ms。',maintainer:'TA-李澈',updateDate:'2026-05-01',refCount:20},
+  {id:'s6',title:'LOD生成与切换距离标准',category:'性能预算',tags:['性能','美术'],scope:'场景/道具-优化阶段',summary:'LOD0:<10m, LOD1:10-30m, LOD2:30-60m, LOD3:>60m。每个LOD面数减半，LOD3不超过2000面。',maintainer:'TA-李澈',updateDate:'2026-04-20',refCount:9},
+  {id:'s7',title:'外包角色模型验收checklist',category:'外包验收',tags:['外包','美术'],scope:'角色/怪物-验收阶段',summary:'必检项：面数/UV展开合理/贴图分辨率达标/骨骼绑定完整/材质球命名规范/LOD生成。',maintainer:'外包管理-刘',updateDate:'2026-05-12',refCount:8},
+  {id:'s8',title:'外包动画交付标准',category:'外包验收',tags:['外包','动画'],scope:'角色-验收阶段',summary:'交付格式FBX 2020+。必须包含：root motion/bone hierarchy/关键帧标注。不含任何材质或贴图。',maintainer:'外包管理-刘',updateDate:'2026-04-30',refCount:6},
+  {id:'s9',title:'鬼将军铠甲材质复盘',category:'案例复盘',tags:['案例','美术'],scope:'角色-全阶段',summary:'铠甲纹理经历4轮返修，核心问题：PBR金属度参数初始值偏高，导致过曝。修正后金属度从0.95降至0.75。',maintainer:'陈磊',updateDate:'2026-05-18',refCount:3},
+  {id:'s10',title:'古寺场景光照调试记录',category:'案例复盘',tags:['案例','性能'],scope:'场景-优化阶段',summary:'动态光源从8盏降至3盏（主光+2补光），其余转静态烘焙。帧率从22fps提升至稳定30fps。',maintainer:'场景组',updateDate:'2026-05-08',refCount:5},
+];
+
+const RISKS = [
+  {id:'rk1',assetId:'a6',assetName:'Boss过场镜头',type:'镜头',riskLevel:'high',owner:'陈磊',version:'v0.6',reason:'动频缺帧·需动捕数据·已延期3天'},
+  {id:'rk2',assetId:'a3',assetName:'火焰爆裂',type:'特效',riskLevel:'mid',owner:'周宁',version:'v1.2',reason:'粒子数超标·GPU预算超出2ms·优化方案待确认'},
+  {id:'rk3',assetId:'a1',assetName:'鬼将军',type:'角色',riskLevel:'low',owner:'陈磊',version:'v1.8',reason:'待主美评审·已有2次返修记录'},
+  {id:'rk4',assetId:'a11',assetName:'战斗UI主界面',type:'UI',riskLevel:'mid',owner:'UI组',version:'v1.5',reason:'返修3次·与设计规范分歧较大'},
+  {id:'rk5',assetId:'a13',assetName:'猴子原型',type:'角色',riskLevel:'high',owner:'陈磊',version:'v0.9',reason:'高模拓扑阻塞·等待概念设计确认'},
+];
+
+// Current mock user
+const CURRENT_USER = '陈磊';
+
+// ==================== ROUTER ====================
+function getRoute(){return window.location.hash.slice(1)||'/dashboard'}
+function navigate(route){window.location.hash=route}
+
+function parseRoute(route){
+  if(route.startsWith('/asset/'))return{page:'asset-detail',id:route.split('/')[2]};
+  const pages={dashboard:true,assets:true,tasks:true,reviews:true,specs:true,risks:true};
+  const p=route.replace('/','');
+  return{page:pages[p]?p:'dashboard'};
+}
+
+function updateNav(page){
+  document.querySelectorAll('.sidebar-nav a').forEach(a=>a.classList.remove('active'));
+  const link=document.querySelector(`[data-route="${page==='asset-detail'?'assets':page}"]`);
+  if(link)link.classList.add('active');
+}
+
+// ==================== STATUS HELPERS ====================
+const STAGE_BADGE_MAP = {
+  '概念中':'concept','制作中':'making','待评审':'review','返修中':'revision',
+  '已通过':'passed','已入库':'stored','阻塞':'blocked','已冻结':'frozen'
+};
+const TASK_STATUS_MAP = {
+  '未开始':'notstarted','进行中':'in-progress','阻塞':'blocked','待评审':'pending-review','已完成':'completed'
+};
+const STAGE_NAMES = ['概念中','制作中','待评审','返修中','已通过','已入库','阻塞','已冻结'];
+
+// ==================== SVG ASSET THUMBNAILS ====================
+const ASSET_THUMB_SVGS = {
+  '角色':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="80" cy="22" r="12" stroke="#C9A45B" stroke-width="1.3"/>
+    <path d="M58 54c0-8 4-14 10-18h24c6 4 10 10 10 18" stroke="#B8B0A3" stroke-width="1.2"/>
+    <path d="M54 72l8-24h36l8 24" stroke="#B8B0A3" stroke-width="1.2"/>
+    <line x1="62" y1="56" x2="62" y2="84" stroke="#B8B0A3" stroke-width="1.1"/>
+    <line x1="98" y1="56" x2="98" y2="84" stroke="#B8B0A3" stroke-width="1.1"/>
+    <line x1="74" y1="84" x2="86" y2="84" stroke="#B8B0A3" stroke-width="1.1"/>
+    <ellipse cx="80" cy="86" rx="28" ry="3" stroke="#4B544A" stroke-width="0.8" stroke-dasharray="2 2"/>
+  </svg>`,
+  '怪物':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M76 20l-10-12m8 12l10-12" stroke="#C87941" stroke-width="1.2"/>
+    <circle cx="80" cy="24" r="13" stroke="#C9A45B" stroke-width="1.3"/>
+    <path d="M50 55c0-9 5-14 12-20h36c7 6 12 11 12 20" stroke="#B8B0A3" stroke-width="1.2"/>
+    <path d="M44 72l10-22h52l10 22" stroke="#B8B0A3" stroke-width="1.2"/>
+    <path d="M68 58c-2 8-4 16-6 22m24 0c-2-6-4-14-6-22" stroke="#D65A4A" stroke-width="1.1"/>
+    <ellipse cx="80" cy="84" rx="36" ry="4" stroke="#4B544A" stroke-width="0.8" stroke-dasharray="2 2"/>
+  </svg>`,
+  '场景':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M70 82V42l22 12v28" stroke="#B8B0A3" stroke-width="1.2"/>
+    <path d="M92 82V36l22 16v30" stroke="#B8B0A3" stroke-width="1.2"/>
+    <path d="M48 82V48l22 14v20" stroke="#B8B0A3" stroke-width="1.2"/>
+    <path d="M40 82l22-20M70 62l22-14M92 52l22-16" stroke="#C9A45B" stroke-width="1.1" stroke-dasharray="3 2"/>
+    <rect x="42" y="78" width="76" height="8" rx="1" stroke="#5D8F7B" stroke-width="1"/>
+    <line x1="60" y1="80" x2="60" y2="88" stroke="#5D8F7B" stroke-width="0.8"/>
+    <line x1="80" y1="80" x2="80" y2="88" stroke="#5D8F7B" stroke-width="0.8"/>
+    <line x1="100" y1="80" x2="100" y2="88" stroke="#5D8F7B" stroke-width="0.8"/>
+  </svg>`,
+  '道具':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M80 18L60 38h40L80 18Z" stroke="#B8B0A3" stroke-width="1.2"/>
+    <path d="M60 38c-16 12-14 34-6 40h52c8-6 10-28-6-40" stroke="#C9A45B" stroke-width="1.2"/>
+    <ellipse cx="80" cy="64" rx="18" ry="10" stroke="#B8B0A3" stroke-width="1"/>
+    <path d="M72 64l-6 20h28l-6-20" stroke="#B8B0A3" stroke-width="1"/>
+    <rect x="64" y="78" width="32" height="6" rx="2" stroke="#4B544A" stroke-width="0.8"/>
+    <line x1="76" y1="44" x2="76" y2="56" stroke="#5D8F7B" stroke-width="0.8" stroke-dasharray="2 2"/>
+    <line x1="84" y1="44" x2="84" y2="56" stroke="#5D8F7B" stroke-width="0.8" stroke-dasharray="2 2"/>
+  </svg>`,
+  '特效':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="80" cy="42" r="6" stroke="#C9A45B" stroke-width="1.2"/>
+    <path d="M80 24l8 12M62 38l12 4M98 38l-12 4M72 54l8 12M88 54l-8 12" stroke="#C87941" stroke-width="1"/>
+    <path d="M60 30l-4-6m44 0l4-6M50 50l-8-2m76 2l8-2" stroke="#D65A4A" stroke-width="0.8"/>
+    <circle cx="80" cy="42" r="16" stroke="#C9A45B" stroke-width="0.8" stroke-dasharray="3 3" opacity="0.5"/>
+    <circle cx="80" cy="42" r="26" stroke="#C87941" stroke-width="0.6" stroke-dasharray="2 4" opacity="0.3"/>
+    <ellipse cx="80" cy="82" rx="40" ry="5" stroke="#4B544A" stroke-width="0.6" opacity="0.4"/>
+  </svg>`,
+  '音频':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M70 24v36a10 8 0 0 0-10-8" stroke="#B8B0A3" stroke-width="1.2"/>
+    <rect x="70" y="24" width="14" height="36" rx="3" stroke="#C9A45B" stroke-width="1.2"/>
+    <path d="M60 76 c0-8 4-12 10-12M100 76c0-8-4-12-10-12" stroke="#5B7DAA" stroke-width="1"/>
+    <path d="M56 46c-6 8-6 18 0 24M104 46c6 8 6 18 0 24" stroke="#5B7DAA" stroke-width="0.8"/>
+    <path d="M88 32c4 6 4 14 0 20" stroke="#B8B0A3" stroke-width="0.8"/>
+    <line x1="74" y1="82" x2="86" y2="82" stroke="#4B544A" stroke-width="0.8"/>
+    <circle cx="80" cy="82" r="1.5" fill="#4B544A"/>
+  </svg>`,
+  '关卡':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="30" y="16" width="100" height="58" rx="2" stroke="#4B544A" stroke-width="0.8"/>
+    <path d="M40 60V24h16v20h12V28h16v36h-12V50H60v18H44" stroke="#C9A45B" stroke-width="1.2"/>
+    <circle cx="44" cy="70" r="4" stroke="#5D8F7B" stroke-width="1"/>
+    <circle cx="116" cy="22" r="4" stroke="#D65A4A" stroke-width="1"/>
+    <line x1="40" y1="36" x2="56" y2="36" stroke="#5B7DAA" stroke-width="0.6" stroke-dasharray="2 2"/>
+    <line x1="72" y1="56" x2="84" y2="56" stroke="#5B7DAA" stroke-width="0.6" stroke-dasharray="2 2"/>
+  </svg>`,
+  'UI':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="28" y="14" width="104" height="62" rx="3" stroke="#B8B0A3" stroke-width="1.2"/>
+    <rect x="34" y="20" width="92" height="14" rx="2" stroke="#4B544A" stroke-width="0.8"/>
+    <rect x="34" y="38" width="44" height="32" rx="2" stroke="#C9A45B" stroke-width="1"/>
+    <rect x="82" y="38" width="44" height="32" rx="2" stroke="#5B7DAA" stroke-width="0.8"/>
+    <line x1="42" y1="28" x2="60" y2="28" stroke="#C9A45B" stroke-width="1.5"/>
+    <line x1="68" y1="28" x2="80" y2="28" stroke="#4B544A" stroke-width="1.5"/>
+    <rect x="44" y="44" width="24" height="6" rx="1" stroke="#5D8F7B" stroke-width="0.8"/>
+    <rect x="90" y="44" width="28" height="6" rx="1" stroke="#5B7DAA" stroke-width="0.8"/>
+  </svg>`,
+  '镜头':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="40" y="22" width="80" height="50" rx="3" stroke="#B8B0A3" stroke-width="1.2"/>
+    <circle cx="80" cy="47" r="12" stroke="#C9A45B" stroke-width="1.2"/>
+    <circle cx="80" cy="47" r="6" stroke="#5B7DAA" stroke-width="0.8"/>
+    <rect x="120" y="30" width="12" height="8" rx="1" stroke="#B8B0A3" stroke-width="0.8"/>
+    <rect x="120" y="56" width="12" height="8" rx="1" stroke="#B8B0A3" stroke-width="0.8"/>
+    <line x1="70" y1="72" x2="90" y2="72" stroke="#C87941" stroke-width="1"/>
+    <line x1="62" y1="76" x2="98" y2="76" stroke="#C87941" stroke-width="0.8"/>
+    <line x1="56" y1="80" x2="104" y2="80" stroke="#C87941" stroke-width="0.6"/>
+  </svg>`,
+  '蓝图':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="80" cy="20" r="8" stroke="#C9A45B" stroke-width="1.2"/>
+    <circle cx="48" cy="52" r="8" stroke="#5B7DAA" stroke-width="1"/>
+    <circle cx="112" cy="52" r="8" stroke="#5B7DAA" stroke-width="1"/>
+    <circle cx="68" cy="78" r="8" stroke="#5D8F7B" stroke-width="0.8"/>
+    <circle cx="92" cy="78" r="8" stroke="#5D8F7B" stroke-width="0.8"/>
+    <line x1="74" y1="26" x2="54" y2="46" stroke="#4B544A" stroke-width="0.8"/>
+    <line x1="86" y1="26" x2="106" y2="46" stroke="#4B544A" stroke-width="0.8"/>
+    <line x1="54" y1="58" x2="62" y2="72" stroke="#4B544A" stroke-width="0.8"/>
+    <line x1="106" y1="58" x2="98" y2="72" stroke="#4B544A" stroke-width="0.8"/>
+    <line x1="74" y1="71" x2="86" y2="71" stroke="#4B544A" stroke-width="0.8"/>
+    <path d="M80 28l-6-4m0 0l-24 22m24-22l24 22" stroke="#4B544A" stroke-width="0.6" stroke-dasharray="2 2"/>
+  </svg>`,
+  '动画':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="52" cy="24" r="8" stroke="#C9A45B" stroke-width="1.2"/>
+    <path d="M52 32v14l8-6 8 6V32" stroke="#B8B0A3" stroke-width="1"/>
+    <line x1="52" y1="44" x2="46" y2="56" stroke="#B8B0A3" stroke-width="1"/>
+    <line x1="52" y1="44" x2="58" y2="56" stroke="#B8B0A3" stroke-width="1"/>
+    <circle cx="108" cy="30" r="8" stroke="#5B7DAA" stroke-width="1" opacity="0.6"/>
+    <path d="M108 38v12l6-5 6 5V38" stroke="#5B7DAA" stroke-width="0.8" opacity="0.6"/>
+    <line x1="108" y1="48" x2="102" y2="58" stroke="#5B7DAA" stroke-width="0.8" opacity="0.6"/>
+    <line x1="108" y1="48" x2="114" y2="58" stroke="#5B7DAA" stroke-width="0.8" opacity="0.6"/>
+    <path d="M30 68c8-4 28-4 36 0M94 68c8-4 28-4 36 0" stroke="#4B544A" stroke-width="0.6" stroke-dasharray="3 2"/>
+    <ellipse cx="80" cy="78" rx="32" ry="3" stroke="#4B544A" stroke-width="0.6"/>
+  </svg>`,
+  '材质':`<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="80" cy="46" r="24" stroke="#B8B0A3" stroke-width="1.2"/>
+    <ellipse cx="80" cy="46" rx="24" ry="10" stroke="#C9A45B" stroke-width="0.8"/>
+    <path d="M56 46c4-12 16-20 24-20s20 8 24 20" stroke="#5D8F7B" stroke-width="0.8"/>
+    <path d="M56 46c4 12 16 20 24 20s20-8 24-20" stroke="#5B7DAA" stroke-width="0.8"/>
+    <line x1="60" y1="30" x2="100" y2="62" stroke="#4B544A" stroke-width="0.5" stroke-dasharray="2 2"/>
+    <line x1="60" y1="62" x2="100" y2="30" stroke="#4B544A" stroke-width="0.5" stroke-dasharray="2 2"/>
+    <circle cx="80" cy="46" r="4" stroke="#C87941" stroke-width="1"/>
+    <ellipse cx="80" cy="82" rx="38" ry="5" stroke="#4B544A" stroke-width="0.6" opacity="0.4"/>
+  </svg>`
+};
+
+// ==================== APP STATE ====================
+let currentReviewId = REVIEWS[0].id;
+
+function assetThumbHTML(type,code){
+  const svg=ASSET_THUMB_SVGS[type]||ASSET_THUMB_SVGS['角色'];
+  return `<div class="thumb-svg">${svg}</div><span class="thumb-code">${code}</span>`;
+}
+
+// ==================== COMPONENT FACTORIES ====================
+function statusBadge(stage){const cls=STAGE_BADGE_MAP[stage]||'making';return`<span class="badge ${cls}">${stage}</span>`}
+function taskStatusBadge(status){const cls=TASK_STATUS_MAP[status]||'in-progress';return`<span class="badge ${cls}">${status}</span>`}
+function riskBadge(level){const map={high:'risk-high',mid:'risk-mid',low:'risk-low'};const label={high:'高',mid:'中',low:'低'};return`<span class="badge ${map[level]}">${label[level]}风险</span>`}
+
+function assetCard(asset){
+  const risk=asset.risk==='high'?`<div class="risk-badge">!</div>`:'';
+  return `
+  <div class="asset-card" data-asset-id="${asset.id}" onclick="navigate('/asset/${asset.id}')">
+    <div class="card-thumb">
+      ${assetThumbHTML(asset.type,asset.code)}
+      ${risk}
+    </div>
+    <div class="card-body">
+      <div class="card-name">${asset.name} · ${asset.type}</div>
+      <div class="card-code">${asset.code}</div>
+      <div class="card-meta">${statusBadge(asset.stage)}</div>
+    </div>
+    <div class="card-footer">
+      <span>${asset.version}</span>
+      <span>${asset.revisionCount>0?asset.revisionCount+'次返修 · ':''}${asset.owner}</span>
+    </div>
+  </div>`;
+}
+
+function taskCard(task){
+  const isBlocked=task.status==='阻塞';
+  const checked=task._done||false;
+  return `
+  <div class="task-card${isBlocked?' blocked-card':''}${checked?' task-done':''}" draggable="true" data-task-id="${task.id}" 
+       ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
+    <div class="task-priority ${task.priority.toLowerCase()}"></div>
+    <div class="task-check" onclick="event.stopPropagation();toggleTaskDone('${task.id}')">
+      ${checked?'<svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="#5D8F7B" stroke="#5D8F7B"/><path d="M5 8.5l2 2 4-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>':
+      '<svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#4B544A" stroke-width="1.2"/></svg>'}
+    </div>
+    <div class="task-title ${checked?'line-through':''}">${task.title}</div>
+    <div class="task-asset">关联：${task.assetName}</div>
+    <div class="task-meta">
+      ${taskStatusBadge(task.status)}
+      ${task.blockReason?`<span style="font-size:11px;color:var(--color-accent-cinnabar)">${task.blockReason}</span>`:''}
+    </div>
+  </div>`;
+}
+
+// ==================== DRAG & DROP ====================
+var NEXT_STATUS_MAP = {'notstarted':'未开始','in-progress':'进行中','blocked':'阻塞','pending-review':'待评审','completed':'已完成'};
+
+function toggleTaskDone(taskId){
+  const task=TASKS.find(t=>t.id===taskId);
+  if(task){task._done=!task._done;}
+  renderPage();
+}
+function handleDragStart(e){
+  e.dataTransfer.setData('text/plain',e.target.dataset.taskId);
+  e.target.classList.add('dragging');
+}
+function handleDragEnd(e){e.target.classList.remove('dragging')}
+function handleDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over')}
+function handleDragLeave(e){e.currentTarget.classList.remove('drag-over')}
+function handleDrop(e){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  const taskId=e.dataTransfer.getData('text/plain');
+  const newStatus=NEXT_STATUS_MAP[e.currentTarget.dataset.status];
+  const task=TASKS.find(t=>t.id===taskId);
+  if(!task)return;
+  if(task.status==='阻塞'&&newStatus==='已完成'){toast('阻塞任务需先解除阻塞才能完成','error');return}
+  if(task.status===newStatus)return;
+  task.status=newStatus;toast(`任务「${task.title}」已移至「${newStatus}」`,'success');
+  renderPage();
+}
+
+// ==================== TOAST ====================
+function toast(msg,type=''){
+  const container=document.getElementById('toastContainer');
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;el.textContent=msg;
+  container.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(20px)';el.style.transition='all 0.2s';setTimeout(()=>el.remove(),200)},2500);
+}
+
+// ==================== MODAL ====================
+function showModal(title,body,footer,cls=''){
+  const overlay=document.createElement('div');overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal ${cls}">
+    <div class="modal-header"><h3>${title}</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button></div>
+    <div class="modal-body">${body}</div>
+    <div class="modal-footer">${footer}</div>
+  </div>`;
+  overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
+  document.body.appendChild(overlay);
+}
+function closeModal(){const overlay=document.querySelector('.modal-overlay');if(overlay)overlay.remove()}
+
+function showReviewModal(){
+  showModal('发起评审',`
+    <div class="form-group"><label>选择资产版本</label><select><option>v1.8 (当前版本)</option><option>v1.7 (历史版本)</option></select></div>
+    <div class="form-group"><label>评审人</label><select><option>主美-张</option><option>TA-李澈</option><option>制作人-王</option></select></div>
+    <div class="form-group"><label>备注</label><textarea placeholder="补充评审说明..."></textarea></div>
+  `,`
+    <button class="btn-secondary" onclick="closeModal()">取消</button>
+    <button class="btn-primary" onclick="closeModal();toast('评审已发起，已通知主美-张','success')">确认发起</button>
+  `);
+}
+
+function showVersionModal(){
+  showModal('提交新版本',`
+    <div class="form-group"><label>版本号</label><input type="text" placeholder="例如：v1.9" value="v1.9"></div>
+    <div class="form-group"><label>变更说明</label><textarea placeholder="描述本次变更内容..."></textarea></div>
+    <div class="form-group"><label>上传文件</label><input type="text" placeholder="选择文件..." style="color:var(--color-text-muted)" readonly></div>
+  `,`
+    <button class="btn-secondary" onclick="closeModal()">取消</button>
+    <button class="btn-primary" onclick="closeModal();toast('版本 v1.9 已提交','success')">确认提交</button>
+  `);
+}
+
+function showDeleteConfirm(){
+  showModal('删除资产','<p style="color:var(--color-text-secondary);font-size:14px">你确定要删除资产「鬼将军」吗？此操作不可撤销，所有关联的版本、任务和评审记录将被移除。</p>',
+    `<button class="btn-secondary" onclick="closeModal()">取消</button>
+     <button class="btn-danger" style="background:var(--color-accent-cinnabar);color:#fff;border:none" onclick="closeModal();toast('资产已删除（模拟）','error')">确认删除</button>`,
+  'danger');
+}
+
+function showReviseModal(){
+  showModal('要求返修',`
+    <div class="form-group"><label>返修说明</label><textarea placeholder="描述需要返修的具体内容..."></textarea></div>
+    <div class="form-group"><label>责任人</label><select><option>陈磊</option><option>李澈</option><option>周宁</option></select></div>
+    <div class="form-group"><label>截止时间</label><input type="text" placeholder="例如：今天 18:00"></div>
+  `,`
+    <button class="btn-secondary" onclick="closeModal()">取消</button>
+    <button style="background:var(--color-accent-cinnabar);color:#fff;border:none;height:36px;padding:0 var(--space-xl);border-radius:var(--radius-md);font-size:13px;font-weight:500;cursor:pointer" onclick="closeModal();toast('返修项已创建','success')">确认返修</button>
+  `);
+}
+
+function showTaskDetail(taskId){
+  const task=TASKS.find(t=>t.id===taskId);if(!task)return;
+  const asset=ASSETS.find(a=>a.id===task.assetId);
+  showModal(`任务详情：${task.title}`,`
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><span style="color:var(--color-text-muted);font-size:12px">关联资产</span><br><span class="asset-link" onclick="closeModal();navigate('/asset/${task.assetId}')">${task.assetName}</span></div>
+      <div><span style="color:var(--color-text-muted);font-size:12px">负责人</span><br><span style="color:var(--color-text-primary)">${task.owner}</span></div>
+      <div><span style="color:var(--color-text-muted);font-size:12px">优先级</span><br><span style="color:var(--color-text-primary)">${task.priority}</span></div>
+      <div><span style="color:var(--color-text-muted);font-size:12px">状态</span><br>${taskStatusBadge(task.status)}</div>
+      <div><span style="color:var(--color-text-muted);font-size:12px">截止时间</span><br><span style="color:var(--color-text-primary)">${task.deadline}</span></div>
+      ${task.blockReason?`<div><span style="color:var(--color-text-muted);font-size:12px">阻塞原因</span><br><span style="color:var(--color-accent-cinnabar)">${task.blockReason}</span></div>`:''}
+    </div>
+  `,`<button class="btn-primary" onclick="closeModal()">关闭</button>`);
+}
+
+function showSpecDetail(specId){
+  const spec=SPECS.find(s=>s.id===specId);if(!spec)return;
+  showModal(`规范详情：${spec.title}`,`
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><span style="color:var(--color-text-muted);font-size:12px">分类</span><br><span style="color:var(--color-text-primary)">${spec.category}</span></div>
+      <div><span style="color:var(--color-text-muted);font-size:12px">适用范围</span><br><span style="color:var(--color-text-primary)">${spec.scope}</span></div>
+      <div><span style="color:var(--color-text-muted);font-size:12px">维护人</span><br><span style="color:var(--color-text-primary)">${spec.maintainer}</span></div>
+      <div><span style="color:var(--color-text-muted);font-size:12px">更新日期</span><br><span style="color:var(--color-text-primary)">${spec.updateDate}</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${spec.tags.map(t=>`<span class="spec-tag ${t==='美术'?'art':t==='性能'?'perf':t==='外包'?'outsource':t==='案例'?'case':''}" style="font-size:11px;padding:3px 8px;border-radius:3px">${t}</span>`).join('')}</div>
+      <div style="background:var(--color-bg-elevated);padding:12px;border-radius:6px;border:1px solid var(--color-border-subtle);line-height:1.6"><span style="color:var(--color-text-secondary);font-size:13px">${spec.summary}</span></div>
+    </div>
+  `,`
+    <button class="btn-secondary" onclick="closeModal()">关闭</button>
+    <button class="btn-primary" onclick="closeModal();toast('已复制规范链接','success')">复制链接</button>
+  `);
+}
+
+function toggleVersionRow(row){
+  row.classList.toggle('expanded');
+  const detail=row.nextElementSibling;
+  if(detail&&detail.classList.contains('ver-detail')){
+    detail.style.display=detail.style.display==='none'?'':'none';
+  }
+}
+
+// ==================== PAGE RENDERERS ====================
+
+function renderDashboard(){
+  const myAssets=ASSETS.filter(a=>a.owner===CURRENT_USER||a.collaborators.includes(CURRENT_USER));
+  const myTasks=TASKS.filter(t=>t.owner===CURRENT_USER);
+  const pendingReviews=myAssets.filter(a=>a.stage==='待评审'||a.stage==='返修中');
+  const blockedAssets=myAssets.filter(a=>a.stage==='阻塞');
+
+  return `
+  <div class="page active">
+    <h2 class="page-title">工作台</h2>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value">${myAssets.length}</div><div class="stat-label">我的资产</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${myTasks.length}</div><div class="stat-label">我的任务</div><div class="stat-sub">${myTasks.filter(t=>t.deadline==='2026-05-22'||t.deadline==='2026-05-25').length} 个今日截止</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${pendingReviews.length}</div><div class="stat-label">被打回项</div><div class="stat-sub">${pendingReviews.filter(a=>a.priority==='P0').length} 个高优先级</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${blockedAssets.length}</div><div class="stat-label">阻塞项</div><div class="stat-sub">需负责人介入</div>
+      </div>
+    </div>
+    <div class="dash-layout">
+      <div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">我的资产</div><a href="#/assets" style="font-size:12px;color:var(--color-brand-primary);text-decoration:none">查看全部 →</a></div>
+          <div class="panel-body">
+            <div class="asset-row">${myAssets.slice(0,3).map(assetCard).join('')}</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:var(--space-xl)">
+          <div class="panel-header"><div class="panel-title">我的任务</div><a href="#/tasks" style="font-size:12px;color:var(--color-brand-primary);text-decoration:none">查看全部 →</a></div>
+          <div class="panel-body" style="padding:0">
+            ${myTasks.filter(t=>t.status!=='已完成').slice(0,4).map(t=>`
+              <div class="task-list-item" onclick="navigate('/tasks')">
+                <div class="task-check"></div>
+                <div class="task-info">
+                  <div class="t-name">${t.title}</div>
+                  <div class="t-asset">${t.assetName} · 截止 ${t.deadline}${t.blockReason?` · <span style="color:var(--color-accent-cinnabar)">${t.blockReason}</span>`:''}</div>
+                </div>
+                ${taskStatusBadge(t.status)}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">待处理</div></div>
+          <div class="panel-body" style="padding:0">
+            <div class="pending-section">
+              <div class="ps-title">返修中</div>
+              ${REVIEWS.filter(r=>r.conclusion==='返修').slice(0,2).map(r=>`
+                <div class="pending-item" style="cursor:pointer" onclick="navigate('/reviews')">
+                  <div class="pi-name">${r.title}</div>
+                  <div class="pi-desc">${r.revisionItems.filter(i=>i.status==='待处理').map(i=>i.desc).join('、')||'待复审'}</div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="pending-section">
+              <div class="ps-title">阻塞</div>
+              ${TASKS.filter(t=>t.status==='阻塞').slice(0,2).map(t=>`
+                <div class="pending-item" style="cursor:pointer" onclick="navigate('/tasks')">
+                  <div class="pi-name">${t.title}</div>
+                  <div class="pi-desc" style="color:var(--color-accent-cinnabar)">${t.blockReason}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderAssets(){
+  return `
+  <div class="page active">
+    <h2 class="page-title">资产库</h2>
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="label">类型</span>
+        <span class="filter-tag active" data-filter="type" data-value="all" onclick="toggleFilter(this)">全部</span>
+        <span class="filter-tag" data-filter="type" data-value="角色怪物" onclick="toggleFilter(this)">角色·怪物</span>
+        <span class="filter-tag" data-filter="type" data-value="场景道具关卡" onclick="toggleFilter(this)">场景·道具</span>
+        <span class="filter-tag" data-filter="type" data-value="特效音频" onclick="toggleFilter(this)">特效·音频</span>
+        <span class="filter-tag" data-filter="type" data-value="动画镜头" onclick="toggleFilter(this)">动画·镜头</span>
+        <span class="filter-tag" data-filter="type" data-value="UI蓝图材质" onclick="toggleFilter(this)">UI·蓝图</span>
+      </div>
+      <div class="filter-group">
+        <span class="label">状态</span>
+        <span class="filter-tag active" data-filter="status" data-value="all" onclick="toggleFilter(this)">全部</span>
+        ${STAGE_NAMES.map(s=>`<span class="filter-tag" data-filter="status" data-value="${s}" onclick="toggleFilter(this)">${s}</span>`).join('')}
+      </div>
+      <div class="filter-search">
+        <span class="s-icon">🔍</span>
+        <input type="text" placeholder="搜索资产名称或编号..." oninput="renderPage()" id="assetSearch">
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="asset-grid" id="assetGrid">
+        ${ASSETS.map(assetCard).join('')}
+      </div>
+      <div class="side-stats">
+        <div class="stat-mini-card"><div class="value">${ASSETS.length}</div><div class="label">总计资产</div></div>
+        <div class="stat-mini-card"><div class="value">${ASSETS.filter(a=>a.stage==='待评审').length}</div><div class="label">待评审</div></div>
+        <div class="stat-mini-card"><div class="value">${ASSETS.filter(a=>a.risk==='high').length}</div><div class="label">高风险</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderAssetDetail(assetId){
+  const asset=ASSETS.find(a=>a.id===assetId);if(!asset)return renderDashboard();
+  const relReviews=REVIEWS.filter(r=>r.assetId===assetId);
+  const versions=[{ver:'v1.8',type:'制作',status:'当前',uploader:'陈磊',time:'2026-05-21',desc:'优化鬼将铠甲材质，增强高光对比'},
+    {ver:'v1.7',type:'返修',status:'历史',uploader:'陈磊',time:'2026-05-18',desc:'修正肩部骨骼穿插，调整blend shape中间帧'},
+    {ver:'v1.5',type:'制作',status:'历史',uploader:'陈磊',time:'2026-05-10',desc:'初版提交：模型+贴图+基础骨骼'}];
+  return `
+  <div class="page active">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-xl)">
+      <div>
+        <h2 class="page-title" style="display:flex;align-items:center;gap:var(--space-sm)">
+          ${asset.name} · ${asset.type} Boss
+          ${statusBadge(asset.stage)}
+        </h2>
+        <div style="font-size:13px;color:var(--color-text-muted);font-family:var(--font-mono);margin-top:4px">${asset.code} · ${asset.version}</div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn-primary" onclick="showReviewModal()">发起评审</button>
+        <button class="btn-secondary" onclick="showVersionModal()">提交版本</button>
+        <button class="btn-danger" onclick="showDeleteConfirm()">删除资产</button>
+      </div>
+    </div>
+    <div class="detail-layout">
+      <div class="detail-preview">
+        <div style="width:50%;height:50%;opacity:0.5">${ASSET_THUMB_SVGS[asset.type]||ASSET_THUMB_SVGS['角色']}</div>
+        <span class="preview-label">${asset.name} ${asset.version} Preview</span>
+      </div>
+      <div>
+        <div class="panel" style="margin-bottom:var(--space-lg)">
+          <div class="panel-header"><div class="panel-title">资产信息</div></div>
+          <div class="panel-body">
+            <table class="info-table">
+              <tr><td>类型</td><td>${asset.type}</td></tr>
+              <tr><td>负责人</td><td>${asset.owner}</td></tr>
+              <tr><td>协作者</td><td>${asset.collaborators.join('，')}</td></tr>
+              <tr><td>阶段</td><td>${asset.stage}</td></tr>
+              <tr><td>截止时间</td><td>${asset.deadline}</td></tr>
+              <tr><td>关联模块</td><td>${asset.module}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:var(--space-lg)">
+          <div class="panel-header"><div class="panel-title">版本</div></div>
+          <div class="panel-body" style="padding:0">
+            <table class="data-table">
+              <thead><tr><th>版本号</th><th>类型</th><th>状态</th><th>负责人</th><th>时间</th><th>备注</th></tr></thead>
+              <tbody>
+                ${versions.map((v,i)=>`<tr class="ver-row" onclick="toggleVersionRow(this)" style="cursor:pointer">
+                  <td class="code"><span class="ver-expand">▸</span> ${v.ver}</td><td>${v.type}</td><td><span style="font-size:12px;color:${v.status==='当前'?'var(--color-brand-primary)':'var(--color-text-muted)'}">${v.status}</span></td><td>${v.uploader}</td><td>${v.time}</td><td style="font-size:12px">${v.desc}</td></tr>
+                <tr class="ver-detail" style="display:none"><td colspan="6" style="background:var(--color-bg-canvas);padding:var(--space-md) var(--space-xl);color:var(--color-text-muted);font-size:12px;border-bottom:1px solid var(--color-border-subtle)">
+                  <span style="color:var(--color-text-secondary)">版本描述：</span>${v.desc}<br>
+                  <span style="color:var(--color-text-secondary)">提交人：</span>${v.uploader} · 提交时间：${v.time} · 类型：${v.type} · 状态：${v.status}
+                </td></tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">关联任务</div></div>
+          <div class="panel-body" style="padding:0">
+            <table class="data-table">
+              <thead><tr><th>任务</th><th>负责人</th><th>状态</th><th>截止</th></tr></thead>
+              <tbody>${TASKS.filter(t=>t.assetId===assetId).slice(0,4).map(t=>`<tr onclick="navigate('/tasks')"><td>${t.title}</td><td>${t.owner}</td><td>${taskStatusBadge(t.status)}</td><td style="font-size:12px">${t.deadline}</td></tr>`).join('')}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">评审与返修记录</div></div>
+          <div class="panel-body">
+            <div class="timeline">
+              ${relReviews.map(r=>{
+                let dotClass='',boxClass='';
+                if(r.conclusion==='返修'){dotClass='revision-dot';boxClass='revision-box'}
+                else if(r.conclusion==='通过'){dotClass='pass-dot';boxClass='pass-box'}
+                else{dotClass='blue-dot';boxClass='blue-box'}
+                return `<div class="timeline-item">
+                  <div class="timeline-dot ${dotClass}"></div>
+                  <div class="timeline-content ${boxClass}" style="cursor:pointer" onclick="this.classList.toggle('expanded');const t=this.querySelector('.timeline-text');t.style.display=t.style.display==='none'?'block':'none'">
+                    <div class="timeline-header">
+                      <span class="timeline-author">${r.title}</span>
+                      <span class="timeline-time">${r.reviewTime}</span>
+                    </div>
+                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px">提交人：${r.submitter} · 评审人：${r.reviewers.join('、')} · 结论：${r.conclusion}</div>
+                    ${r.annotations.map(a=>`<div class="timeline-text" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--color-border-subtle)"><strong style="color:var(--color-text-primary);font-size:12px">${a.author}</strong> <span style="font-size:11px;color:var(--color-text-muted)">${a.role} · ${a.time}</span><br>${a.content}</div>`).join('')}
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const TASK_BOARD_COLS = [
+  {key:'notstarted',label:'未开始',class:'h-notstarted',status:'未开始'},
+  {key:'in-progress',label:'进行中',class:'h-inprogress',status:'进行中'},
+  {key:'blocked',label:'阻塞',class:'h-blocked',status:'阻塞'},
+  {key:'pending-review',label:'待评审',class:'h-pendingreview',status:'待评审'},
+  {key:'completed',label:'已完成',class:'h-completed',status:'已完成'},
+];
+
+function renderTasks(){
+  return `
+  <div class="page active">
+    <h2 class="page-title">任务看板</h2>
+    <div class="board">
+      ${TASK_BOARD_COLS.map(col=>{
+        const tasks=TASKS.filter(t=>t.status===col.status);
+        return `<div class="board-column">
+          <div class="board-col-header ${col.class}">
+            <span class="board-col-title">${col.label}</span>
+            <span class="board-col-count">${tasks.length}</span>
+          </div>
+          <div class="board-col-body" data-status="${col.key}" 
+               ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            ${tasks.map(taskCard).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderReviews(){
+  const currentReview=REVIEWS.find(r=>r.id===currentReviewId)||REVIEWS[0];
+  return `
+  <div class="page active">
+    <h2 class="page-title">评审中心</h2>
+    <div class="review-layout">
+      <div class="review-queue">
+        <div class="panel-header" style="border-bottom:1px solid var(--color-border-subtle)"><div class="panel-title">待评审队列</div></div>
+        ${REVIEWS.map((r,i)=>`
+          <div class="queue-item${r.id===currentReviewId?' active':''}" onclick="selectReview('${r.id}')" data-review-id="${r.id}">
+            <div class="q-name">${r.title}</div>
+            <div class="q-meta">${statusBadge(r.conclusion==='返修'?'返修中':r.conclusion==='通过'?'已通过':r.conclusion==='搁置'?'已冻结':'待评审')} · ${r.submitter} · ${r.reviewTime.split(' ')[0]}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="review-main">
+        <div class="review-preview">
+          <div style="width:40%;height:40%;opacity:0.45">${ASSET_THUMB_SVGS['角色']}</div>
+        </div>
+        <div class="review-annotations">
+          <div class="panel-header"><div class="panel-title">材料批注</div></div>
+          ${currentReview.annotations.map((a,i)=>`
+            <div class="ann-item">
+              <span class="ann-idx">#${i+1}</span><span class="ann-author">${a.author}</span> <span style="font-size:11px;color:var(--color-text-muted)">${a.role} · ${a.time}</span>
+              <div class="ann-text">${a.content}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="review-actions">
+          <button class="btn-approve" onclick="toast('评审通过 ✓','success')">✓ 通过</button>
+          <button class="btn-revise" onclick="showReviseModal()">↺ 要求返修</button>
+        </div>
+      </div>
+      <div class="revision-panel">
+        <div class="panel"><div class="panel-header"><div class="panel-title">返修项</div></div>
+          <div class="panel-body" style="display:flex;flex-direction:column;gap:var(--space-md)">
+            ${currentReview.revisionItems.map(ri=>`
+              <div class="rev-item">
+                <div class="rev-desc">${ri.desc}</div>
+                <div class="rev-meta">${ri.owner} · <span class="rev-deadline">${ri.deadline}</span> · <span style="font-size:11px">${ri.status}</span></div>
+              </div>
+            `).join('')||'<div style="color:var(--color-text-muted);font-size:13px;text-align:center;padding:var(--space-xl)">暂无返修项</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSpecs(){
+  return `
+  <div class="page active">
+    <h2 class="page-title">规范库</h2>
+    <div class="filter-search" style="margin-bottom:var(--space-lg);width:320px">
+      <span class="s-icon">🔍</span>
+      <input type="text" placeholder="搜索规范标题或摘要..." style="width:320px" oninput="renderPage()" id="specSearch">
+    </div>
+    <div class="spec-tabs">
+      <span class="spec-tab active" data-spec-cat="all" onclick="toggleSpecTab(this)">全部 <span class="count">${SPECS.length}</span></span>
+      <span class="spec-tab" data-spec-cat="美术规范" onclick="toggleSpecTab(this)">美术规范 <span class="count">${SPECS.filter(s=>s.category==='美术规范').length}</span></span>
+      <span class="spec-tab" data-spec-cat="动画规范" onclick="toggleSpecTab(this)">动画规范 <span class="count">${SPECS.filter(s=>s.category==='动画规范').length}</span></span>
+      <span class="spec-tab" data-spec-cat="性能预算" onclick="toggleSpecTab(this)">性能预算 <span class="count">${SPECS.filter(s=>s.category==='性能预算').length}</span></span>
+      <span class="spec-tab" data-spec-cat="外包验收" onclick="toggleSpecTab(this)">外包验收 <span class="count">${SPECS.filter(s=>s.category==='外包验收').length}</span></span>
+      <span class="spec-tab" data-spec-cat="案例复盘" onclick="toggleSpecTab(this)">案例复盘 <span class="count">${SPECS.filter(s=>s.category==='案例复盘').length}</span></span>
+    </div>
+    <div class="two-col">
+      <div id="specList">
+        ${SPECS.map(s=>`<div class="spec-card" onclick="showSpecDetail('${s.id}')">
+          <div class="spec-title">${s.title}</div>
+          <div class="spec-tags">${s.tags.map(t=>{const cls={美术:'art',性能:'perf',外包:'outsource',案例:'case',动画:'art'};return`<span class="spec-tag ${cls[t]||'art'}">${t}</span>`}).join('')}</div>
+          <div class="spec-meta">适用范围：${s.scope} · 维护人：${s.maintainer} · ${s.updateDate}</div>
+        </div>`).join('')}
+      </div>
+      <div>
+        <div class="stat-mini-card" style="margin-bottom:var(--space-md)"><div class="stat-big">18</div><div class="stat-desc">引用资产 · 角色/怪物</div></div>
+        <div class="stat-mini-card"><div class="stat-big">32%</div><div class="stat-desc">返修下降 <span class="stat-trend">↓ 较上月</span></div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderRisks(){
+  const riskDist={角色:74,场景:48,特效:32,动画:28,音频:12};
+  const maxRisk=Math.max(...Object.values(riskDist));
+  return `
+  <div class="page active">
+    <h2 class="page-title">项目风险</h2>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value">${ASSETS.filter(a=>a.stage==='阻塞'||a.risk==='high').length}</div><div class="stat-label">逾期资产</div><div class="stat-sub" style="color:var(--color-accent-cinnabar)">+2 较昨日</div></div>
+      <div class="stat-card"><div class="stat-value">${ASSETS.filter(a=>a.revisionCount>2).length}</div><div class="stat-label">高返修资产</div></div>
+      <div class="stat-card"><div class="stat-value">${ASSETS.filter(a=>a.stage==='待评审').length}</div><div class="stat-label">待评审积压</div></div>
+      <div class="stat-card"><div class="stat-value">${TASKS.filter(t=>t.status==='阻塞').length}</div><div class="stat-label">阻塞任务</div></div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">本周风险清单</div></div>
+          <div style="padding:0;overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>资产名</th><th>类型</th><th>风险等级</th><th>负责人</th><th>版本</th><th>原因</th></tr></thead>
+              <tbody>
+                ${RISKS.map(r=>`<tr onclick="navigate('/asset/${r.assetId}')">
+                  <td class="asset-link">${r.assetName}</td><td>${r.type}</td><td>${riskBadge(r.riskLevel)}</td>
+                  <td>${r.owner}</td><td class="code">${r.version}</td><td class="reason">${r.reason}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">风险分布</div></div>
+          <div class="panel-body">
+            <div class="risk-bar-chart">
+              ${Object.entries(riskDist).map(([type,num])=>{
+                const barClass={角色:'role',场景:'scene',特效:'fx',动画:'anim',音频:'audio'};
+                return `<div class="bar-row">
+                  <div class="bar-label">${type}</div>
+                  <div class="bar-track"><div class="bar-fill ${barClass[type]}" style="width:${(num/maxRisk*100)}%"></div></div>
+                  <div class="bar-value">${num}</div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ==================== EMPTY STATE & SKELETON ====================
+const EMPTY_SVG=`<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5"/><line x1="3" y1="9" x2="21" y2="9" stroke-width="1.5"/><line x1="9" y1="3" x2="9" y2="21" stroke-width="1.5"/></svg>`;
+
+function emptyState(title,desc=''){
+  return `<div class="empty-state">${EMPTY_SVG}<div class="empty-title">${title}</div>${desc?`<div class="empty-desc">${desc}</div>`:''}</div>`;
+}
+
+function skeletonGrid(count=6){
+  return `<div class="asset-grid">${Array(count).fill('<div class="skeleton skel-card"></div>').join('')}</div>`;
+}
+
+// ==================== FILTERS ====================
+function toggleFilter(el){
+  const group=el.dataset.filter;
+  const val=el.dataset.value;
+  if(val==='all'){
+    el.parentElement.querySelectorAll('.filter-tag').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+  }else{
+    el.parentElement.querySelector('.filter-tag[data-value="all"]').classList.remove('active');
+    el.classList.toggle('active');
+    const anyActive=[...el.parentElement.querySelectorAll('.filter-tag:not([data-value="all"])')].some(t=>t.classList.contains('active'));
+    if(!anyActive)el.parentElement.querySelector('.filter-tag[data-value="all"]').classList.add('active');
+  }
+  renderPage();
+}
+
+function toggleSpecTab(el){
+  document.querySelectorAll('.spec-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderPage();
+}
+
+function selectReview(reviewId){
+  currentReviewId=reviewId;
+  renderPage();
+}
+
+// ==================== MAIN RENDER ====================
+function renderPage(){
+  const route=getRoute();
+  const {page,id}=parseRoute(route);
+  updateNav(page);
+  const content=document.getElementById('pageContent');
+
+  let html='';
+  switch(page){
+    case 'assets':html=renderAssets();break;
+    case 'asset-detail':html=renderAssetDetail(id);break;
+    case 'tasks':html=renderTasks();break;
+    case 'reviews':html=renderReviews();break;
+    case 'specs':html=renderSpecs();break;
+    case 'risks':html=renderRisks();break;
+    default:html=renderDashboard();
+  }
+  content.innerHTML=html;
+
+  // Re-attach event listeners for search inputs
+  const assetSearch=document.getElementById('assetSearch');
+  if(assetSearch){
+    assetSearch.addEventListener('input',applyAssetFilter);
+  }
+  const specSearch=document.getElementById('specSearch');
+  if(specSearch){
+    specSearch.addEventListener('input',applySpecFilter);
+  }
+
+  // Apply existing filters
+  if(page==='assets')applyAssetFilter();
+  if(page==='specs')applySpecFilter();
+}
+
+function applyAssetFilter(){
+  const activeTypes=getActiveFilters('type');
+  const activeStatuses=getActiveFilters('status');
+  const searchTerm=(document.getElementById('assetSearch')?.value||'').toLowerCase();
+
+  const grid=document.getElementById('assetGrid');
+  if(!grid)return;
+  const cards=grid.querySelectorAll('.asset-card');
+  const existingEmpty=grid.parentElement.querySelector('.empty-state');
+  if(existingEmpty)existingEmpty.remove();
+
+  let visibleCount=0;
+  ASSETS.forEach((asset,i)=>{
+    const card=cards[i];if(!card)return;
+    let match=true;
+    if(activeTypes.length>0&&!matchTypeFilter(asset.type,activeTypes))match=false;
+    if(activeStatuses.length>0&&!activeStatuses.includes(asset.stage))match=false;
+    if(searchTerm&&!asset.name.toLowerCase().includes(searchTerm)&&!asset.code.toLowerCase().includes(searchTerm))match=false;
+    card.style.display=match?'':'none';
+    if(match)visibleCount++;
+  });
+
+  if(visibleCount===0){
+    grid.insertAdjacentHTML('afterend',emptyState('没有找到匹配的资产','试试调整筛选条件或搜索关键词'));
+  }
+}
+
+function applySpecFilter(){
+  const activeCat=document.querySelector('.spec-tab.active')?.dataset.specCat||'all';
+  const searchTerm=(document.getElementById('specSearch')?.value||'').toLowerCase();
+  const list=document.getElementById('specList');
+  if(!list)return;
+  const cards=list.querySelectorAll('.spec-card');
+  const existingEmpty=list.parentElement.querySelector('.empty-state');
+  if(existingEmpty)existingEmpty.remove();
+
+  let visibleCount=0;
+  SPECS.forEach((spec,i)=>{
+    const card=cards[i];if(!card)return;
+    let match=true;
+    if(activeCat!=='all'&&spec.category!==activeCat)match=false;
+    if(searchTerm&&!spec.title.toLowerCase().includes(searchTerm)&&!spec.summary.toLowerCase().includes(searchTerm))match=false;
+    card.style.display=match?'':'none';
+    if(match)visibleCount++;
+  });
+
+  if(visibleCount===0){
+    list.insertAdjacentHTML('afterend',emptyState('没有找到匹配的规范','试试切换分类或调整搜索关键词'));
+  }
+}
+
+function getActiveFilters(group){
+  const tags=document.querySelectorAll(`.filter-tag[data-filter="${group}"].active`);
+  return [...tags].map(t=>t.dataset.value).filter(v=>v!=='all');
+}
+
+// Category mappings for broad type filtering
+const TYPE_CATEGORIES = {
+  '角色怪物':['角色','怪物'],
+  '场景道具关卡':['场景','道具','关卡'],
+  '特效音频':['特效','音频'],
+  '动画镜头':['动画','镜头'],
+  'UI蓝图材质':['UI','蓝图','材质'],
+};
+
+function matchTypeFilter(assetType, activeCatValues){
+  if(activeCatValues.length===0)return true;
+  return activeCatValues.some(cat=>{
+    const types=TYPE_CATEGORIES[cat]||[cat];
+    return types.includes(assetType);
+  });
+}
+
+// ==================== INIT ====================
+window.addEventListener('hashchange',renderPage);
+document.getElementById('btnNewAsset').addEventListener('click',()=>toast('新建资产功能将在后续版本中实装'));
+
+let searchDropdown=document.getElementById('searchDropdown');
+document.getElementById('globalSearch').addEventListener('input',function(e){
+  const val=e.target.value.toLowerCase().trim();
+  if(!val){searchDropdown.style.display='none';return;}
+  
+  const results=[];
+  ASSETS.forEach(a=>{if(a.name.toLowerCase().includes(val)||a.code.toLowerCase().includes(val))results.push({type:'asset',text:`${a.name} · ${a.type}`,sub:`${a.code} ${a.version}`,id:a.id,url:`/asset/${a.id}`});});
+  TASKS.forEach(t=>{if(t.title.toLowerCase().includes(val))results.push({type:'task',text:t.title,sub:t.assetName,id:t.id,url:`/tasks`});});
+  SPECS.forEach(s=>{if(s.title.toLowerCase().includes(val))results.push({type:'spec',text:s.title,sub:s.summary,id:s.id,url:`/specs`});});
+  
+  if(results.length===0){searchDropdown.style.display='none';return;}
+  
+  searchDropdown.innerHTML=results.slice(0,8).map(r=>`
+    <div class="sd-item" onclick="navigate('${r.url}');document.getElementById('globalSearch').value='';searchDropdown.style.display='none'">
+      <span class="sd-type ${r.type}">${r.type==='asset'?'资产':r.type==='task'?'任务':'规范'}</span>
+      <span style="flex:1">${r.text}</span>
+      <span style="font-size:11px;color:var(--color-text-muted)">${r.sub}</span>
+    </div>
+  `).join('');
+  searchDropdown.style.display='block';
+});
+
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.topbar-search'))searchDropdown.style.display='none';
+});
+
+renderPage();
+</script>
+
+</body>
+</html>
