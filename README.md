@@ -49,11 +49,12 @@
 
 ```
 lingyun/
-├── PRD.md                          # 完整产品需求文档（8 章）
+├── PRD.md                           # 完整产品需求文档（8 章）
 ├── design.md                        # 信息架构与页面设计说明
 ├── style-guide.md                   # 美术风格与组件规范
-├── 灵蕴-AssetFlow-MVP.html          # HTML MVP v1（初始版本）
-├── 灵蕴-AssetFlow-MVP-v2.html       # HTML MVP v2（视觉+交互优化版）★
+├── 灵蕴.fig                         # figma（初始版本）
+├── 灵蕴.pdf                         # 原型pdf（初始版本）
+├── lingyun-AssetFlow-MVP-v3.html    # HTML MVP v3（视觉+交互优化版）★
 └── README.md                        # 本文件
 ```
 
@@ -61,7 +62,7 @@ lingyun/
 
 ## 快速预览
 
-1. 下载 `灵蕴-AssetFlow-MVP-v2.html`
+1. 下载 `lingyun-AssetFlow-MVP-v3.html`
 2. 双击在浏览器打开（无需服务器）
 3. 7 个页面均可独立访问，交互功能完整
 
